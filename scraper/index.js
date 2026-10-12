@@ -266,6 +266,31 @@ function locationFromTitle(title) {
   return hit ? [hit] : scraperConfig.defaultLocation;
 }
 
+/**
+ * Parse one cariere.decathlon.ro job page: the schema.org JobPosting JSON-LD
+ * block gives title, location (addressRegion, else addressLocality) and,
+ * when present, validThrough.
+ * @param {string} html
+ * @returns {{title: string|null, city: string|null, expirationdate: (number|undefined)}}
+ */
+function parseJobDetail(html) {
+  const blocks = [...String(html).matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const b of blocks) {
+    let data;
+    try { data = JSON.parse(b[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&')); } catch { try { data = JSON.parse(b[1]); } catch { continue; } }
+    const jp = Array.isArray(data) ? data.find((d) => d && d['@type'] === 'JobPosting') : data;
+    if (!jp || jp['@type'] !== 'JobPosting') continue;
+    const decode = (t) => String(t || '').replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+    const addr = (jp.jobLocation && jp.jobLocation.address) || {};
+    const city = decode(addr.addressRegion || addr.addressLocality) || null;
+    const title = decode(jp.title) || null;
+    let expirationdate;
+    if (jp.validThrough) { const t = Date.parse(jp.validThrough); if (!Number.isNaN(t)) expirationdate = t; }
+    return { title, city, expirationdate };
+  }
+  return { title: null, city: null, expirationdate: undefined };
+}
+
 async function scrapeCareers() {
   console.log(`Scraping ${scraperConfig.sources.listing} ...`);
   const jobs = [];
@@ -275,7 +300,9 @@ async function scrapeCareers() {
 
   let listingItems = [];
   try {
-    listingItems = parseListing(await fetchListing());
+    // Decathlon: the career site root is a client-rendered list -- the sitemap is the source
+    // of truth, so the generic listing parse (which would match page chrome) is skipped.
+    listingItems = [];
     console.log(`  Listing: ${listingItems.length} open positions`);
   } catch (err) {
     console.log(`  Listing error: ${err.message}`);
@@ -347,15 +374,23 @@ async function scrapeCareers() {
     // Listing unreachable — fall back to sitemap-only, deriving titles from slugs.
     console.log("  Falling back to sitemap-only (titles from slugs)");
     for (const e of sitemapEntries) {
-      const title = e.slug
-        .split("-")
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
+      // One detail page per job: schema.org JobPosting JSON-LD (TalentLyft ATS).
+      let detail = { title: null, city: null };
+      try {
+        const res = await fetch(e.url, { timeout: TIMEOUT, headers: { "User-Agent": userAgent } });
+        if (!res.ok) { console.log(`  ${e.url} -> ${res.status}, skipped`); await sleep(PAGE_DELAY); continue; }
+        detail = parseJobDetail(await res.text());
+      } catch (err) {
+        console.log(`  detail fetch failed ${e.url}: ${err.message}`);
+      }
+      await sleep(PAGE_DELAY);
+      if (!detail.title) continue;
       jobs.push({
         url: e.url,
-        title,
-        location: scraperConfig.defaultLocation,
+        title: detail.title,
+        location: detail.city ? [detail.city] : scraperConfig.defaultLocation,
         workmode: scraperConfig.defaultWorkmode,
+        expirationdate: detail.expirationdate,
         source: CAREERS_SOURCE
       });
     }
@@ -727,7 +762,7 @@ async function main(dryRun = process.argv.includes("--dry-run")) {
   }
 }
 
-export { mapToJobModel, transformJobsForSOLR, scrapeCareers, fetchSitemapJobUrls, parseListing, slugify, matchSitemapUrl, matchSitemapUrlExact, parseDeadline, dropDeadUrls };
+export { parseJobDetail, mapToJobModel, transformJobsForSOLR, scrapeCareers, fetchSitemapJobUrls, parseListing, slugify, matchSitemapUrl, matchSitemapUrlExact, parseDeadline, dropDeadUrls };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main();

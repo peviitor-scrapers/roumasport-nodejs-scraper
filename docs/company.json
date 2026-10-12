@@ -3,9 +3,15 @@
   "company": "ROUMASPORT SRL",
   "brand": "Decathlon",
   "status": "activ",
-  "location": ["Bucuresti"],
-  "website": ["https://www.decathlon.ro"],
-  "career": ["https://cariere.decathlon.ro/"],
+  "location": [
+    "Bucuresti"
+  ],
+  "website": [
+    "https://www.decathlon.ro"
+  ],
+  "career": [
+    "https://cariere.decathlon.ro/"
+  ],
   "scraperFile": "https://github.com/peviitor-scrapers/roumasport-nodejs-scraper/actions/workflows/scrape.yml",
   "ownJobUrlPrefix": "https://cariere.decathlon.ro/jobs/"
 }
