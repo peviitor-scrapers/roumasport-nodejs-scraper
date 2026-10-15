@@ -10,11 +10,11 @@
 | Location | MUNICIPIUL BUCUREŞTI, SECTOR 6, B-DUL IULIU MANIU, NR.546-560, BL.CORP 2 |
 | Website | [https://www.decathlon.ro](https://www.decathlon.ro) |
 | Careers | [https://cariere.decathlon.ro/](https://cariere.decathlon.ro/) |
-| Last Scraped | 2026-10-14 |
+| Last Scraped | 2026-10-15 |
 
-## Current Job Listings (87)
+## Current Job Listings (88)
 
-_Generated: 2026-10-14T11:22:59.067Z_
+_Generated: 2026-10-15T11:00:26.292Z_
 
 ### Reprezentant Vânzări Decathlon Băneasa
 
@@ -156,6 +156,13 @@ _Generated: 2026-10-14T11:22:59.067Z_
 - **Location:** România
 - **Status:** scraped
 
+### Reprezentant Vânzări Decathlon Deva
+
+- **URL:** [https://cariere.decathlon.ro/jobs/reprezentant-vanzari-decathlon-deva-cdPd](https://cariere.decathlon.ro/jobs/reprezentant-vanzari-decathlon-deva-cdPd)
+- **Work Mode:** on-site
+- **Location:** Hunedoara
+- **Status:** scraped
+
 ### Manager Departament Decathlon Deva
 
 - **URL:** [https://cariere.decathlon.ro/jobs/manager-departament-decathlon-deva-cdPe](https://cariere.decathlon.ro/jobs/manager-departament-decathlon-deva-cdPe)
@@ -280,6 +287,13 @@ _Generated: 2026-10-14T11:22:59.067Z_
 - **URL:** [https://cariere.decathlon.ro/jobs/manager-departament-decathlon-ploiesti-cdPv](https://cariere.decathlon.ro/jobs/manager-departament-decathlon-ploiesti-cdPv)
 - **Work Mode:** on-site
 - **Location:** România
+- **Status:** scraped
+
+### Reprezentant Vânzări Decathlon Satu Mare
+
+- **URL:** [https://cariere.decathlon.ro/jobs/reprezentant-vanzari-decathlon-satu-mare-cdPw](https://cariere.decathlon.ro/jobs/reprezentant-vanzari-decathlon-satu-mare-cdPw)
+- **Work Mode:** on-site
+- **Location:** Satu Mare
 - **Status:** scraped
 
 ### Manager Departament Decathlon Satu Mare
@@ -448,13 +462,6 @@ _Generated: 2026-10-14T11:22:59.067Z_
 - **URL:** [https://cariere.decathlon.ro/jobs/manager-departament-decathlon-alba-iulia-cdQi](https://cariere.decathlon.ro/jobs/manager-departament-decathlon-alba-iulia-cdQi)
 - **Work Mode:** on-site
 - **Location:** România
-- **Status:** scraped
-
-### Junior Legal Advisor (Labor law)
-
-- **URL:** [https://cariere.decathlon.ro/jobs/junior-legal-advisor-labor-law-cdQm](https://cariere.decathlon.ro/jobs/junior-legal-advisor-labor-law-cdQm)
-- **Work Mode:** on-site
-- **Location:** Bucuresti
 - **Status:** scraped
 
 ### Reprezentant Vânzări Decathlon Arad
