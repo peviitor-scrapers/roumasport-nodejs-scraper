@@ -10,11 +10,11 @@
 | Location | MUNICIPIUL BUCUREŞTI, SECTOR 6, B-DUL IULIU MANIU, NR.546-560, BL.CORP 2 |
 | Website | [https://www.decathlon.ro](https://www.decathlon.ro) |
 | Careers | [https://cariere.decathlon.ro/](https://cariere.decathlon.ro/) |
-| Last Scraped | 2026-10-21 |
+| Last Scraped | 2026-10-22 |
 
-## Current Job Listings (84)
+## Current Job Listings (87)
 
-_Generated: 2026-10-21T11:22:29.994Z_
+_Generated: 2026-10-22T11:19:09.700Z_
 
 ### Reprezentant Vânzări Decathlon Băneasa
 
@@ -415,11 +415,25 @@ _Generated: 2026-10-21T11:22:29.994Z_
 - **Location:** Bucuresti
 - **Status:** scraped
 
+### Tehnician reparații biciclete Decathlon Iași
+
+- **URL:** [https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-iasi-cdPY](https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-iasi-cdPY)
+- **Work Mode:** on-site
+- **Location:** Iasi
+- **Status:** scraped
+
 ### Manager Departament Decathlon Braila
 
 - **URL:** [https://cariere.decathlon.ro/jobs/manager-departament-decathlon-braila-cdP3](https://cariere.decathlon.ro/jobs/manager-departament-decathlon-braila-cdP3)
 - **Work Mode:** on-site
 - **Location:** Braila
+- **Status:** scraped
+
+### Manager Departament Decathlon Pitești
+
+- **URL:** [https://cariere.decathlon.ro/jobs/manager-departament-decathlon-pitesti-cdP6](https://cariere.decathlon.ro/jobs/manager-departament-decathlon-pitesti-cdP6)
+- **Work Mode:** on-site
+- **Location:** România
 - **Status:** scraped
 
 ### Junior Logistic Department Manager
@@ -432,6 +446,13 @@ _Generated: 2026-10-21T11:22:29.994Z_
 ### Reprezentant Vânzări Decathlon Alba Iulia
 
 - **URL:** [https://cariere.decathlon.ro/jobs/reprezentant-vanzari-decathlon-alba-iulia-cdQg](https://cariere.decathlon.ro/jobs/reprezentant-vanzari-decathlon-alba-iulia-cdQg)
+- **Work Mode:** on-site
+- **Location:** România
+- **Status:** scraped
+
+### Manager Departament Decathlon Alba Iulia
+
+- **URL:** [https://cariere.decathlon.ro/jobs/manager-departament-decathlon-alba-iulia-cdQi](https://cariere.decathlon.ro/jobs/manager-departament-decathlon-alba-iulia-cdQi)
 - **Work Mode:** on-site
 - **Location:** România
 - **Status:** scraped
