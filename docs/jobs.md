@@ -10,11 +10,11 @@
 | Location | MUNICIPIUL BUCUREŞTI, SECTOR 6, B-DUL IULIU MANIU, NR.546-560, BL.CORP 2 |
 | Website | [https://www.decathlon.ro](https://www.decathlon.ro) |
 | Careers | [https://cariere.decathlon.ro/](https://cariere.decathlon.ro/) |
-| Last Scraped | 2026-11-02 |
+| Last Scraped | 2026-11-03 |
 
 ## Current Job Listings (87)
 
-_Generated: 2026-11-02T14:58:02.015Z_
+_Generated: 2026-11-03T13:46:03.986Z_
 
 ### Reprezentant Vânzări Decathlon Băneasa
 
