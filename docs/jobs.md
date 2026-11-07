@@ -10,11 +10,11 @@
 | Location | MUNICIPIUL BUCUREŞTI, SECTOR 6, B-DUL IULIU MANIU, NR.546-560, BL.CORP 2 |
 | Website | [https://www.decathlon.ro](https://www.decathlon.ro) |
 | Careers | [https://cariere.decathlon.ro/](https://cariere.decathlon.ro/) |
-| Last Scraped | 2026-11-06 |
+| Last Scraped | 2026-11-07 |
 
-## Current Job Listings (87)
+## Current Job Listings (88)
 
-_Generated: 2026-11-06T13:53:14.719Z_
+_Generated: 2026-11-07T12:37:08.028Z_
 
 ### Reprezentant Vânzări Decathlon Băneasa
 
@@ -523,6 +523,13 @@ _Generated: 2026-11-06T13:53:14.719Z_
 ### Tehnician reparații biciclete Decathlon Craiova
 
 - **URL:** [https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-craiova-cdQV](https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-craiova-cdQV)
+- **Work Mode:** on-site
+- **Location:** România
+- **Status:** scraped
+
+### Tehnician reparații biciclete Decathlon Târgu Mureș
+
+- **URL:** [https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-targu-mures-cdQW](https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-targu-mures-cdQW)
 - **Work Mode:** on-site
 - **Location:** România
 - **Status:** scraped
