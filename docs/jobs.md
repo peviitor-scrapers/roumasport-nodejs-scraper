@@ -14,7 +14,7 @@
 
 ## Current Job Listings (88)
 
-_Generated: 2026-11-12T14:46:47.294Z_
+_Generated: 2026-11-12T18:56:34.535Z_
 
 ### Reprezentant Vânzări Decathlon Băneasa
 
