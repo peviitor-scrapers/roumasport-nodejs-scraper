@@ -6,6 +6,17 @@ starts its own changelog from its first release.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- CUIScan and CUIFirma are the only company-data sources; the retired
+  demoanaf.ro endpoint is gone from code, tests, docs and workflow comments.
+  The CLI wrapper and its test file are now `scraper/anaf-cli.js` and
+  `tests/unit/anaf.test.js` (#24).
+- Company status no longer gates scraping or triggers job deletion. The unused
+  `deleteJobsByCIF()` API helper was removed; company-core `status` remains a
+  config value only (#25).
+
 ## [1.3.0] - 2026-09-23
 
 ### Added

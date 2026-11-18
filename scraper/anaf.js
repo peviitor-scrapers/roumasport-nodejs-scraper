@@ -4,9 +4,7 @@
  * Strategy: 1 try cuiscan.ro (company details by CIF). No retries.
  * Search: 1 try cuifirma.ro (brand search).
  *
- * demoanaf.ro's free API tier was sunset 2026-08-21 (permanent HTTP 402 on
- * every /api/* call) and is fully removed. CUIScan and CUIFirma are now the
- * only sources for company data.
+ * CUIScan and CUIFirma are the only sources for company data.
  */
 
 import fetch from "node-fetch";
@@ -44,9 +42,6 @@ function mapCuiscanToAnafFormat(data) {
     cashBasisVat: data.tvaIncasare || false,
     cashBasisVatStart: data.dataInceputTvaInc || null,
     cashBasisVatEnd: data.dataSfarsitTvaInc || null,
-    inactive: !data.activ,
-    inactiveSince: data.dataInactivare || null,
-    reactivatedSince: data.dataReactivare || null,
     splitVat: data.splitTVA || false,
     eFacturaRegistered: data.eFactura || false,
     headquartersAddress: data.adresaSediu ? {
@@ -62,8 +57,7 @@ function mapCuiscanToAnafFormat(data) {
       name: a.nume || a.name || "", role: a.rol || a.role || "administrator"
     })),
     authorizedCaenCodes: data.caenAutorizate || [],
-    onrcStatus: 0,
-    onrcStatusLabel: data.activ ? "Funcțiune" : "Inactiv"
+    onrcStatus: 0
   };
 }
 
@@ -107,7 +101,7 @@ async function searchFromCuifirma(brandName) {
   return (json.results || []).map(r => ({
     cui: String(r.cui),
     name: r.name,
-    statusLabel: r.is_active ? "Funcțiune" : (r.status_label || "Inactiv")
+    statusLabel: r.status_label || ""
   }));
 }
 

@@ -129,20 +129,6 @@ describe('scraper/api.js', () => {
     });
   });
 
-  describe('deleteJobsByCIF', () => {
-    it('should delete all jobs for a CIF', async () => {
-      mockFetch.mockResolvedValue(makeJsonResponse({ count: 3 }));
-
-      await expect(solr.deleteJobsByCIF('39176747')).resolves.not.toThrow();
-    });
-
-    it('should throw on HTTP error', async () => {
-      mockFetch.mockResolvedValue(makeErrorResponse(500, 'Error'));
-
-      await expect(solr.deleteJobsByCIF('39176747')).rejects.toThrow('API jobs delete error: 500');
-    });
-  });
-
   // Regression tests for the CIF zero-padding bug family: several derived
   // scrapers historically produced duplicate company-core records because a
   // stale copy of api.js sent an unpadded CIF while other call sites (or the
@@ -183,16 +169,6 @@ describe('scraper/api.js', () => {
       const [, options] = mockFetch.mock.calls[0];
       const body = JSON.parse(options.body);
       expect(body.id).toBe(PADDED_CIF);
-    });
-
-    it('deleteJobsByCIF pads the cif field in the request body', async () => {
-      mockFetch.mockResolvedValue(makeJsonResponse({ count: 0 }));
-
-      await solr.deleteJobsByCIF(SHORT_CIF);
-
-      const [, options] = mockFetch.mock.calls[0];
-      const body = JSON.parse(options.body);
-      expect(body.cif).toBe(PADDED_CIF);
     });
 
     it('upsertJobs pads every job\'s cif field in the request body', async () => {

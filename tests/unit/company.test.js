@@ -54,7 +54,6 @@ const EXAMPLE_CUISCAN_RECORD = {
   denumire: 'EXAMPLE COMPANY SRL',
   adresa: 'STR. EXAMPLE, NR.1, LOCALITATE',
   codCaen: '0000',
-  activ: true,
   platitorTVA: true,
   eFacturaRegistered: false,
   headquartersAddress: { localitate: 'Iași' }
@@ -88,7 +87,6 @@ describe('company.js', () => {
 
       expect(result).toHaveProperty('company', 'EXAMPLE COMPANY SRL');
       expect(result).toHaveProperty('cif', '12345678');
-      expect(result).toHaveProperty('active', true);
       expect(result).toHaveProperty('anafData');
       expect(result.anafData.name).toBe('EXAMPLE COMPANY SRL');
     });
@@ -112,8 +110,7 @@ describe('company.js', () => {
       anaf: { ...EXAMPLE_CUISCAN_RECORD, name: EXAMPLE_CUISCAN_RECORD.denumire },
       summary: {
         company: 'EXAMPLE COMPANY SRL',
-        cif: '12345678',
-        active: true
+        cif: '12345678'
       }
     };
 
@@ -126,7 +123,6 @@ describe('company.js', () => {
 
       expect(result.company).toBe('EXAMPLE COMPANY SRL');
       expect(result.cif).toBe('12345678');
-      expect(result.active).toBe(true);
       expect(mockFetch).not.toHaveBeenCalled();
     });
   });
@@ -136,7 +132,7 @@ describe('company.js', () => {
       clearAllCaches();
     });
 
-    it('should return company data with status active', async () => {
+    it('should return company identity and existing job count', async () => {
       mockFetch
         .mockResolvedValueOnce(cuiscanCompanyResponse(EXAMPLE_CUISCAN_RECORD))
         .mockResolvedValueOnce(solrResponse(5, [
@@ -147,53 +143,10 @@ describe('company.js', () => {
 
       const result = await company.validateAndGetCompany();
 
-      expect(result).toHaveProperty('status', 'active');
       expect(result).toHaveProperty('company', 'EXAMPLE COMPANY SRL');
       expect(result).toHaveProperty('cif', '12345678');
       expect(result).toHaveProperty('existingJobsCount');
       expect(typeof result.existingJobsCount).toBe('number');
-    });
-
-    it('should return inactive status when company is inactive', async () => {
-      const inactiveRecord = { ...EXAMPLE_CUISCAN_RECORD, activ: false };
-
-      mockFetch
-        .mockResolvedValueOnce(cuiscanCompanyResponse(inactiveRecord))
-        .mockResolvedValueOnce(solrResponse(0, []));
-
-      const result = await company.validateAndGetCompany();
-
-      expect(result).toHaveProperty('status', 'inactive');
-    });
-
-    it('deletes jobs by CIF when an inactive company still has jobs in SOLR', async () => {
-      const inactiveRecord = { ...EXAMPLE_CUISCAN_RECORD, activ: false };
-
-      mockFetch
-        .mockResolvedValueOnce(cuiscanCompanyResponse(inactiveRecord))
-        .mockResolvedValueOnce(solrResponse(3, []))
-        .mockResolvedValueOnce(peviitorResponse([]))
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ count: 3 }) }); // deleteJobsByCIF
-
-      const result = await company.validateAndGetCompany();
-
-      expect(result.status).toBe('inactive');
-      const deleteCall = mockFetch.mock.calls.find(([, opts]) => opts?.method === 'DELETE');
-      expect(deleteCall).toBeDefined();
-    });
-
-    it('regression: dry_run=true must never call deleteJobsByCIF, even with jobs present', async () => {
-      const inactiveRecord = { ...EXAMPLE_CUISCAN_RECORD, activ: false };
-
-      mockFetch
-        .mockResolvedValueOnce(cuiscanCompanyResponse(inactiveRecord))
-        .mockResolvedValueOnce(solrResponse(3, []));
-
-      const result = await company.validateAndGetCompany(true);
-
-      expect(result.status).toBe('inactive');
-      const deleteCall = mockFetch.mock.calls.find(([, opts]) => opts?.method === 'DELETE');
-      expect(deleteCall).toBeUndefined();
     });
   });
 });

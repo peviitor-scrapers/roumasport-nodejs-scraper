@@ -552,10 +552,7 @@ async function dropDeadUrls(jobs) {
 /**
  * `--dry-run` mirrors the Python template's `--dry-run` flag: scrape and
  * validate normally, but make zero real writes -- no company upsert, no job
- * upsert, no job delete of any kind. This flag did not exist at all before
- * (this whole function always wrote for real, unconditionally, including a
- * CIF-wide job delete for an ANAF-inactive company), so every "test run" of
- * a JS scraper was a real production write.
+ * upsert, no job delete of any kind.
  */
 async function main(dryRun = process.argv.includes("--dry-run")) {
   try {
@@ -574,20 +571,9 @@ async function main(dryRun = process.argv.includes("--dry-run")) {
     );
     console.log(`Found ${existingCount} existing jobs in SOLR (${ownExistingUrls.size} ours)`);
 
-    console.log("=== Step 2: Validate company via ANAF ===");
-    const { company, cif, address, status } = await validateAndGetCompany(dryRun);
+    console.log("=== Step 2: Validate company via CUIScan/CUIFirma ===");
+    const { company, cif, address } = await validateAndGetCompany();
     COMPANY_NAME = company;
-    if (status === 'inactive') {
-      if (dryRun) {
-        console.log(`Company is INACTIVE — dry-run, so NOT deleting our ${ownExistingUrls.size} job(s) (would delete on a real run; validateAndGetCompany already skipped the CIF-wide delete)`);
-      } else {
-        console.log("Company is INACTIVE — removing only our own jobs, skipping scrape.");
-        for (const url of ownExistingUrls) {
-          try { await deleteJobByUrl(url); } catch (e) { console.warn(`  delete failed: ${url} — ${e.message}`); }
-        }
-      }
-      return;
-    }
 
     // On by default: upsertCompany is an idempotent PUT of ANAF-validated facts
     // (name, address, website, career URL), so there's no real downside to
@@ -600,7 +586,7 @@ async function main(dryRun = process.argv.includes("--dry-run")) {
           id: cif,
           company,
           brand: companyConfig.brand || undefined,
-          status: status === 'active' ? 'activ' : (status || "activ"),
+          status: companyConfig.status || "activ",
           location: address ? [address] : companyConfig.location,
           website: companyConfig.website,
           career: companyConfig.career,
@@ -668,7 +654,7 @@ async function main(dryRun = process.argv.includes("--dry-run")) {
       id: cif,
       company: transformedPayload.company,
       brand: companyConfig.brand || undefined,
-      status: status === 'active' ? 'activ' : (status || "activ"),
+      status: companyConfig.status || "activ",
       location: address ? [address] : companyConfig.location,
       website: companyConfig.website,
       career: companyConfig.career,

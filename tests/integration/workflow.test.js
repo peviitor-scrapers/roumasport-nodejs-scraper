@@ -3,11 +3,8 @@ import fetch from 'node-fetch';
 
 const API_BASE = 'https://api.peviitor.ro/v1';
 
-// demoanaf.ro's free API tier was sunset 2026-08-21 (permanent HTTP 402 on
-// every /api/* call). anaf.js now uses cuiscan.ro (company details) and
-// cuifirma.ro (brand search) as its only sources, so "are company data
-// sources available" must probe those instead — probing demoanaf.ro alone
-// would leave these tests pending forever.
+// anaf.js uses cuiscan.ro (company details) and cuifirma.ro (brand search) as
+// its only company-data sources, so the availability probe checks those two.
 async function checkAnafAvailability() {
   try {
     const [cuiscan, cuifirma] = await Promise.allSettled([
@@ -35,7 +32,7 @@ const COMPANY_NAME = companyConfig.company;
 // while the company config / company core keep the real CIF. Compare loosely.
 const cifMatches = (value) => String(value).replace(/^0+/, '') === COMPANY_CIF.replace(/^0+/, '');
 
-// ANAF returns the official legal name with Romanian diacritics (e.g. "...
+// CUIScan returns the official legal name with Romanian diacritics (e.g. "...
 // ROMÂNIA..."), which may not match company.json's spelling if that field is
 // also used as a live SOLR search key elsewhere (docs/index.html job lookups,
 // company.js's peviitor reconciliation) against already-indexed records with
@@ -110,9 +107,7 @@ describe('Integration: API Workflow', () => {
       expect(Array.isArray(results)).toBe(true);
       if (results.length === 0) { console.warn('CUIFirma/CUIScan search returned nothing - upstream search unavailable, skipping'); return; }
 
-      const company = results.find(c =>
-        c.cui.toString() === COMPANY_CIF && c.statusLabel === 'Funcțiune'
-      );
+      const company = results.find(c => c.cui.toString() === COMPANY_CIF);
       expect(company).toBeDefined();
       expect(company.cui.toString()).toBe(COMPANY_CIF);
     }, 15000);
@@ -132,8 +127,6 @@ describe('Integration: API Workflow', () => {
       expect(data).toHaveProperty('address');
       expect(data).toHaveProperty('registrationNumber');
       expect(data).toHaveProperty('caenCode');
-      expect(data).toHaveProperty('inactive', false);
-      expect(data).toHaveProperty('onrcStatusLabel', 'Funcțiune');
     }, 15000);
 
     itIfAnaf('should throw for invalid CIF', async () => {
@@ -280,14 +273,11 @@ describe('Integration: API Workflow', () => {
       const searchResults = await anaf.searchCompany(COMPANY_NAME);
       if (searchResults.length === 0) { console.warn('CUIFirma/CUIScan search returned nothing - upstream search unavailable, skipping'); return; }
 
-      const matchedCompany = searchResults.find(c =>
-        c.cui.toString() === COMPANY_CIF && c.statusLabel === 'Funcțiune'
-      );
+      const matchedCompany = searchResults.find(c => c.cui.toString() === COMPANY_CIF);
       expect(matchedCompany).toBeDefined();
 
       const anafData = await anaf.getCompanyFromANAF(matchedCompany.cui.toString());
       expect(namesMatch(anafData.name, COMPANY_NAME)).toBe(true);
-      expect(anafData.inactive).toBe(false);
     }, 30000);
 
     itIfApi('should have matching CIF in company core', async () => {
@@ -302,7 +292,6 @@ describe('Integration: API Workflow', () => {
     itIfApi('should validate company and query API for existing jobs', async () => {
       const companyResult = await companyModule.validateAndGetCompany();
 
-      expect(companyResult.status).toBe('active');
       expect(companyResult.company).toBe(COMPANY_NAME);
       expect(companyResult.cif).toBe(COMPANY_CIF);
 

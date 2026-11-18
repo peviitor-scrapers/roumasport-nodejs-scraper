@@ -10,9 +10,7 @@
     "registrationNumber": "J00/000/2000",
     "caenCode": "0000",
     "vatRegistered": true,
-    "inactive": false,
-    "headquartersAddress": { "locality": "Bucuresti", "county": "Bucuresti" },
-    "onrcStatusLabel": "Funcțiune"
+    "headquartersAddress": { "locality": "Bucuresti", "county": "Bucuresti" }
   },
   "peviitor": {
     "id": "12345678",
@@ -26,7 +24,6 @@
   "summary": {
     "company": "ROUMASPORT SRL",
     "cif": "12345678",
-    "active": true,
     "address": "STR. EXAMPLE, NR.1, LOCALITATE"
   }
 }

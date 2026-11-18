@@ -44,19 +44,18 @@ When working on this scraper:
 ## Workflow Steps
 
 1. **Start with brand** - We know the brand (from `config/company.json`)
-2. **Search in DemoANAF** - Find company by brand, get CIF from search results
-3. **Get company details from ANAF** - Using CIF, fetch full company data from ANAF
+2. **Search in CUIFirma** - Find company by brand, get CIF from search results
+3. **Get company details from CUIScan** - Using CIF, fetch full company data by CIF
 4. **Validate with Peviitor** - Verify company exists in Peviitor, get group/brand info
 5. **Check existing jobs** - Query Peviitor API by CIF to see what jobs already exist
-6. **Check company status** - If ANAF status = "inactive" → DELETE our own jobs and STOP
-7. **Save company.json** - Save all ANAF + Peviitor data for backup
-8. **Scrape new jobs** - Parse `the company careers site/open-position/` (HTTP + Cheerio), reconcile titles against `joburi-sitemap.xml`, add ANOFM jobs (by CIF)
-9. **Transform for API** - Validate and fix job data:
+6. **Save company.json** - Save all CUIScan + Peviitor data for backup
+7. **Scrape new jobs** - Parse `the company careers site/open-position/` (HTTP + Cheerio), reconcile titles against `joburi-sitemap.xml`, add ANOFM jobs (by CIF)
+8. **Transform for API** - Validate and fix job data:
    - location: Only Romanian cities allowed
    - tags: lowercase, no diacritics
    - company: uppercase
-10. **Upsert to API** - Import/update jobs via Peviitor API
-11. **Verify URLs** - Check existing job URLs still work, delete 404s
+9. **Upsert to API** - Import/update jobs via Peviitor API
+10. **Verify URLs** - Check existing job URLs still work, delete 404s
 
 ## Running the Scraper
 
@@ -72,7 +71,7 @@ node scraper/index.js
 When running `node scraper/index.js`, the following steps happen automatically:
 
 1. **Check existing jobs count** - Query Peviitor API by CIF (read-only); note which URLs are ours
-2. **Validate company via ANAF** - Check company exists and is active
+2. **Validate company via CUIScan/CUIFirma** - Resolve legal name and CIF, refresh the 7-day cache
 3. **Scrape jobs** - Parse `the company careers site` (HTTP + Cheerio) + `joburi-sitemap.xml` + ANOFM (by CIF)
 4. **Transform for API** - Fix locations (only Romanian cities), normalize fields
 5. **Upsert to API** - Add/update jobs (API handles duplicates by URL)
@@ -93,13 +92,13 @@ querySOLR(CIF) - check existing jobs (note our own URLs)
     ▼
 company.js (validate company)
     ├── load cache (tmp/company.json)
-    │   └── if fresh (<7 days), skip ANAF entirely
-    ├── ANAF API ──► get company name + CIF (only if cache stale/missing)
-    ├── CUIScan ──► fallback if ANAF fails
-    ├── Peviitor API ──► validate company model
+    │   └── if fresh (<7 days), skip company-data APIs entirely
+    ├── CUIScan ──► company name + CIF (only if cache stale/missing)
+    ├── CUIFirma ──► brand search / CIF resolution
+    ├── Peviitor API ──► reconcile company-core record
     └── SOLR ──► check existing jobs count
     │
-    ▼ (if active)
+    ▼
 scrapeCareers()                     searchANOFM(CIF)
     ├── fetchSitemapJobUrls()  (joburi-sitemap.xml → canonical permalinks)
     ├── fetchListing() + parseListing()  (open-position page, Cheerio)
@@ -128,9 +127,9 @@ generateJobsMarkdown() → docs/jobs.md
 | `scraper/config/scraper.json` | Source config: the careers-site sitemap/listing/jobArchive URLs, Cheerio selectors, delays, `ownJobUrlPrefix` |
 | `scraper/config/scraper.js` | ESM wrapper that loads `scraper.json` (+ `userAgent`) for Node code |
 | `scraper/index.js` | Main entry point - full workflow: validate company → scrape → transform → upsert → generate docs/jobs.md |
-| `scraper/company.js` | Validates company via ANAF + CUIScan + Peviitor; caches in `tmp/company.json` (7-day TTL) |
-| `scraper/anaf.js` | Multi-source company data module - ANAF + CUIScan (company details) + CUIFirma (search) |
-| `scraper/demoanaf.js` | CLI entry point for anaf.js (thin wrapper) |
+| `scraper/company.js` | Resolves company identity via CUIScan/CUIFirma + Peviitor; caches in `tmp/company.json` (7-day TTL) |
+| `scraper/anaf.js` | Company data module - CUIScan (details by CIF) + CUIFirma (brand search) |
+| `scraper/anaf-cli.js` | CLI entry point for anaf.js (thin wrapper) |
 | `scraper/api.js` | Peviitor API operations module - query, delete, upsert jobs + standalone commands |
 | `scraper/validate-jobs.js` | Manual deep validator (content-aware); thin CLI wrapper over `scraper/job-validator.js` |
 | `scraper/job-validator.js` | Shared validation primitives: `validateByHead`, `validateByContent`, `DEFAULT_EXPIRED_KEYWORDS` |
@@ -140,8 +139,8 @@ generateJobsMarkdown() → docs/jobs.md
 | `tests/unit/index.test.js` | Unit tests for slugify, parseDeadline, matchSitemapUrl, parseListing, mapToJobModel, transformJobsForSOLR |
 | `tests/unit/company.test.js` | Unit tests for validateAndGetCompany and fallback caching |
 | `tests/unit/api.test.js` | Unit tests for api.js - query, upsert, delete, HTTP error handling |
-| `tests/unit/demoanaf.test.js` | Unit tests for anaf.js - ANAF search and company retrieval |
-| `tests/integration/workflow.test.js` | Live integration tests - ANAF + Peviitor API |
+| `tests/unit/anaf.test.js` | Unit tests for anaf.js - CUIScan/CUIFirma search and company retrieval |
+| `tests/integration/workflow.test.js` | Live integration tests - CUIScan/CUIFirma + Peviitor API |
 | `tests/e2e/scraper.test.js` | End-to-end tests with real scraping pipeline |
 | `tests/consistency/public.test.js` | Verifies repo is public on GitHub |
 | `tests/consistency/repo.test.js` | Verifies branch, Pages, secrets, workflow files |
@@ -150,10 +149,8 @@ generateJobsMarkdown() → docs/jobs.md
 
 ## API Endpoints
 
-- **DemoANAF Search**: `https://demoanaf.ro/api/search?q=BRAND` - Search companies by name/brand
-- **DemoANAF Company**: `https://demoanaf.ro/api/company/:cui` - Get company details by CIF
-- **CUIScan**: `https://cuiscan.ro/api.php?action=company&cui=CIF` - Company details fallback
-- **CUIFirma Search**: `https://cuifirma.ro/api/search?q=BRAND` - Search fallback
+- **CUIScan**: `https://cuiscan.ro/api.php?action=company&cui=CIF` - Company details by CIF
+- **CUIFirma Search**: `https://cuifirma.ro/api/search?q=BRAND` - Search companies by name/brand
 - **Peviitor API**: `https://api.peviitor.ro/v1/` — all job and company operations go through this API
 - **Decathlon — listing**: `https://cariere.decathlon.ro/` — pagina publică de posturi deschise (HTML server-rendered)
 - **Decathlon — sitemap**: `https://cariere.decathlon.ro/sitemap.xml` — permalink-uri canonice `/joburi/<slug>/`
@@ -166,7 +163,7 @@ The scraper is intentionally slow to be a good citizen:
 | Setting | Value | Where |
 |---------|-------|-------|
 | Request timeout | 10000 ms | `scraper/config/scraper.json` — `requestTimeoutMs` |
-| ANAF fallback | 1 attempt ANAF → CUIScan | `scraper/anaf.js` — no retries, just fallback |
+| Company data | CUIScan / CUIFirma, no retries | `scraper/anaf.js` — 7-day cache in `tmp/company.json` |
 | Concurrency | 1 (sequential) | No `Promise.all` for paginated fetches |
 | User-Agent | `job_seeker_ro_spider` | Identifies the scraper in server logs |
 | Page delay | 1000 ms between requests | `scraper/config/scraper.json` — `pageDelayMs` |
@@ -194,11 +191,11 @@ node scraper/api.js extract <CIF>
 # Query company in SOLR
 node scraper/api.js company <search_term>
 
-# Get company details from ANAF/CUIScan by CIF
-node scraper/demoanaf.js <CIF>
+# Get company details from CUIScan by CIF
+node scraper/anaf-cli.js <CIF>
 
-# Search companies in ANAF/CUIFirma by brand
-node scraper/demoanaf.js search <brand>
+# Search companies in CUIFirma by brand
+node scraper/anaf-cli.js search <brand>
 
 # Validate job URLs from SOLR by CIF (check active/expired)
 node scraper/validate-jobs.js <CIF>
@@ -215,7 +212,7 @@ node scraper/validate-jobs.js <CIF> --delete
 This project requires multiple levels of testing:
 
 1. **Unit Tests** - Test individual modules (api.js, company.js, anaf.js) in isolation
-2. **Integration Tests** - Test API interactions (ANAF, Peviitor, SOLR) in `/tests/integration` folder
+2. **Integration Tests** - Test API interactions (CUIScan/CUIFirma, Peviitor, SOLR) in `/tests/integration` folder
 3. **E2E Tests** - Test full workflow in `/tests/e2e` folder
 
 Run tests:
@@ -229,7 +226,7 @@ All temporary/scratch files must be placed in `tmp/` inside the project root (ne
 
 ## Technical Debt / Completed
 
-- [x] Extract demoanaf.js to separate module (#2)
+- [x] Extract anaf.js CLI wrapper (anaf-cli.js) to separate module (#2)
 - [x] Write Unit Tests for all modules (#3)
 - [x] Write Integration Tests in separate folder (#4)
 - [x] Write E2E automated tests in separate folder (#5)

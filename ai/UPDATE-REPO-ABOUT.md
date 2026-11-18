@@ -6,7 +6,7 @@ push if these are missing (topics.test.js, repo.test.js "GitHub Pages URL
 set in About").
 
 ## Description
-Scraper automat pentru locurile de muncă ROUMASPORT SRL (CIF: 23727785) — extrage de pe the company careers site și ANOFM, validează via ANAF și publică pe peviitor.ro
+Scraper automat pentru locurile de muncă ROUMASPORT SRL (CIF: 23727785) — extrage de pe the company careers site și ANOFM, validează via CUIScan/CUIFirma și publică pe peviitor.ro
 
 ## Topics (exactly 2, per TOPICS.md)
 - job-seeker-ro-spider

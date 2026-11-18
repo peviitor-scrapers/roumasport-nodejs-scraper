@@ -10,7 +10,7 @@ Jest.
 
 ## What it does (once configured)
 
-1. **Validate the company** via the public ANAF API (`demoanaf.ro`) by CIF — name, active/inactive status, address. Cached in `tmp/company.json` (7-day TTL) with a stale-cache fallback.
+1. **Validate the company** via CUIScan (details by CIF) and CUIFirma (brand search) — legal name and address. Cached in `tmp/company.json` (7-day TTL) with a stale-cache fallback.
 2. **Scrape jobs** from the company's own careers listing (HTTP + Cheerio, no browser), reconciled against its job sitemap, plus ANOFM by CIF.
 3. **Self-heal** every field through a selector cascade (primary CSS → fallback CSS → structural / JSON-LD → regex). See [`ai/AGENTS.md`](ai/AGENTS.md).
 4. **Validate + canary** — drop jobs with a bad URL / empty title; abort before any write if the scrape produced nothing.

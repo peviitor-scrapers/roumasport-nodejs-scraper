@@ -8,7 +8,7 @@
  * - Querying jobs by company CIF (via peviitor API)
  * - Querying/upserting company data (via peviitor API)
  * - Adding/updating (upserting) jobs (via peviitor API)
- * - Deleting jobs by CIF or URL (via peviitor API)
+ * - Deleting jobs by URL (via peviitor API)
  *
  * All Solr operations go through the peviitor API — no direct Solr access.
  *
@@ -202,34 +202,6 @@ export async function querySOLR(cif) {
 // ============================================================================
 // DELETE OPERATIONS
 // ============================================================================
-
-/**
- * Deletes all jobs for a company by CIF via the peviitor API
- */
-export async function deleteJobsByCIF(cif) {
-  const url = `${API_BASE_URL}/scraper/jobs/delete/`;
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": userAgent
-    },
-    body: JSON.stringify({ cif: padCif(cif) })
-  });
-
-  if (res.status === 404) {
-    console.log(`⚠️ No jobs found for CIF ${cif} — nothing to delete.`);
-    return;
-  }
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API jobs delete error: ${res.status} - ${text}`);
-  }
-
-  const data = await res.json();
-  console.log(`✅ Deleted ${data.count ?? 0} jobs for CIF ${cif} via API.`);
-}
 
 /**
  * Deletes a single job by its URL via the peviitor API

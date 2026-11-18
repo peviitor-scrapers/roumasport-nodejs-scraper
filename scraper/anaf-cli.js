@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * CLI entry point for the ANAF API module
- * 
+ * CLI entry point for the company-data module (CUIScan / CUIFirma)
+ *
  * Usage:
- *   node demoanaf.js search <brand>    - Search for companies
- *   node demoanaf.js <cif>             - Get company details by CIF
- * 
+ *   node anaf-cli.js search <brand>    - Search for companies
+ *   node anaf-cli.js <cif>             - Get company details by CIF
+ *
  * The core library is in scraper/anaf.js — this file only provides
  * the standalone CLI interface.
  */

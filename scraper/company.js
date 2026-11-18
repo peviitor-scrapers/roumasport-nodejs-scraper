@@ -7,7 +7,7 @@
 
 import fetch from "node-fetch";
 import fs from "fs";
-import { querySOLR, deleteJobsByCIF } from "./api.js";
+import { querySOLR } from "./api.js";
 import { getCompanyFromANAF } from "./anaf.js";
 import companyConfig from "./config/company.js";
 import { userAgent } from "./config/scraper.js";
@@ -135,8 +135,6 @@ function saveCompanyData(anafData, peviitorData) {
     summary: {
       company: anafData?.name || null,
       cif: anafData?.cui?.toString() || null,
-      active: !anafData?.inactive,
-      inactiveSince: anafData?.inactiveSince || null,
       address: anafData?.address || null
     }
   };
@@ -195,12 +193,10 @@ export async function getCompanyData() {
     const anafData = cachedData.anaf;
 
     console.log(`Cached name: ${anafData.name}`);
-    console.log(`Cached status: ${anafData.inactive ? "INACTIVE" : "ACTIVE"}`);
 
     return {
       company: anafData.name.toUpperCase(),
       cif: anafData.cui.toString(),
-      active: !anafData.inactive,
       anafData
     };
   }
@@ -221,7 +217,6 @@ export async function getCompanyData() {
       return {
         company: a.name.toUpperCase(),
         cif: a.cui.toString(),
-        active: !a.inactive,
         anafData: a
       };
     }
@@ -229,7 +224,6 @@ export async function getCompanyData() {
     return {
       company: COMPANY_LEGAL_NAME,
       cif: COMPANY_CIF,
-      active: true,
       anafData: null
     };
   }
@@ -242,12 +236,10 @@ export async function getCompanyData() {
   }
 
   console.log(`CUIScan returned name: ${anafData.name}`);
-  console.log(`CUIScan status: ${anafData.inactive ? "INACTIVE" : "ACTIVE"}`);
 
   return {
     company: anafData.name.toUpperCase(),
     cif: anafData.cui.toString(),
-    active: !anafData.inactive,
     anafData
   };
 }
@@ -256,20 +248,12 @@ export async function getCompanyData() {
 // COMPANY VALIDATION WORKFLOW
 // ============================================================================
 
-/**
- * @param {boolean} dryRun - when true, skips the CIF-wide delete below for an
- * CUIScan-inactive company. This function never had a dry-run path at all before
- * -- callers had no way to safely check a company's status without risking a
- * real, CIF-wide DELETE against peviitor's live API (deleteJobsByCIF removes
- * every job under that CIF, including ones scraped by other, unrelated
- * scrapers, not just this one's).
- */
-export async function validateAndGetCompany(dryRun = false) {
+export async function validateAndGetCompany() {
   console.log("=== Step 1: Validate company via CUIScan/CUIFirma ===\n");
 
   const companyData = await getCompanyData();
   let company = companyData.company;
-  const { cif, active, anafData } = companyData;
+  const { cif, anafData } = companyData;
 
   console.log("\n=== Step 2: Check existing jobs in SOLR ===\n");
   const solrResult = await querySOLR(cif);
@@ -305,22 +289,10 @@ export async function validateAndGetCompany(dryRun = false) {
     company = peviitorData.company;
   }
 
-  if (!active) {
-    if (dryRun) {
-      console.log(`\n⚠️ Company is INACTIVE in CUIScan -- dry-run, so NOT deleting the ${solrResult.numFound} job(s) under this CIF (would run deleteJobsByCIF on a real run)`);
-    } else {
-      console.log("\n⚠️ Company is INACTIVE in CUIScan - deleting jobs from SOLR and stopping");
-      if (solrResult.numFound > 0) {
-        await deleteJobsByCIF(cif);
-      }
-    }
-    return { status: "inactive", company, cif, existingJobsCount: solrResult.numFound };
-  }
-
   const address = anafData?.address || "";
 
   console.log(`\n✅ Company validated: ${company}, CIF: ${cif}`);
   console.log("Ready to scrape jobs...\n");
 
-  return { status: "active", company, cif, existingJobsCount: solrResult.numFound, address, anafData };
+  return { company, cif, existingJobsCount: solrResult.numFound, address, anafData };
 }

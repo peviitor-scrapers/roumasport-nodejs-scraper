@@ -21,35 +21,33 @@ function gate(cond) {
 }
 const itLive = gate(CONFIGURED);
 
-// demoanaf.ro's free API tier was sunset 2026-08-21 (permanent HTTP 402 on
-// every /api/* call). anaf.js already falls back to cuiscan.ro/cuifirma.ro
-// when demoanaf.ro fails, so "is ANAF available" must reflect that fallback
-// chain — probing demoanaf.ro alone would leave these tests pending forever.
-async function checkAnafAvailability() {
-  const [demoanaf, cuifirma] = await Promise.allSettled([
-    fetch('https://demoanaf.ro/api/search?q=test', { method: 'HEAD', signal: AbortSignal.timeout(5000) }),
+// anaf.js reads company data from cuiscan.ro and cuifirma.ro only, so the
+// availability probe checks those two sources.
+async function checkCompanyDataAvailability() {
+  const [cuiscan, cuifirma] = await Promise.allSettled([
+    fetch('https://cuiscan.ro/api.php?action=company&cui=test', { method: 'HEAD', signal: AbortSignal.timeout(5000) }),
     fetch('https://cuifirma.ro/api/search?q=test', { signal: AbortSignal.timeout(5000) }),
   ]);
-  return (demoanaf.status === 'fulfilled' && demoanaf.value.ok) ||
+  return (cuiscan.status === 'fulfilled' && cuiscan.value.ok) ||
          (cuifirma.status === 'fulfilled' && cuifirma.value.ok);
 }
 
 // NOTE: top-level await, resolved BEFORE the describe()/it() calls below are
 // registered. Jest builds its whole test tree synchronously on file load, so
-// a `beforeAll`-based check here would only ever be read by itIfApi/itIfAnaf
+// a `beforeAll`-based check here would only ever be read by itIfApi/itIfCompanyData
 // AFTER they already decided (at their default `false`) whether to skip —
 // permanently pending every gated test regardless of actual availability.
 let HAS_API = false;
-let HAS_ANAF = false;
+let HAS_COMPANY_DATA = false;
 if (CONFIGURED) {
-  [HAS_API, HAS_ANAF] = await Promise.all([
+  [HAS_API, HAS_COMPANY_DATA] = await Promise.all([
     fetch(`${API_BASE}/scraper/jobs/?cif=${TEST_CIF}&rows=1`, { signal: AbortSignal.timeout(5000) })
       .then(r => r.ok || r.status === 400).catch(() => false),
-    checkAnafAvailability().catch(() => false),
+    checkCompanyDataAvailability().catch(() => false),
   ]);
 }
 const itIfApi = (name, fn, t) => gate(CONFIGURED && HAS_API)(name, fn, t);
-const itIfAnaf = (name, fn, t) => gate(CONFIGURED && HAS_ANAF)(name, fn, t);
+const itIfCompanyData = (name, fn, t) => gate(CONFIGURED && HAS_COMPANY_DATA)(name, fn, t);
 
 describe('E2E: Full Scraping Pipeline', () => {
 
@@ -112,17 +110,16 @@ describe('E2E: Full Scraping Pipeline', () => {
       api = await import('../../scraper/api.js');
     });
 
-    itIfAnaf('finds the company in ANAF and reads active status', async () => {
+    itIfCompanyData('finds the company via CUIScan/CUIFirma', async () => {
       const results = await anaf.searchCompany(COMPANY_NAME);
-      const match = results.find(c => c.cui.toString() === TEST_CIF && c.statusLabel === 'Funcțiune');
+      const match = results.find(c => c.cui.toString() === TEST_CIF);
       expect(match).toBeDefined();
       const data = await anaf.getCompanyFromANAF(TEST_CIF);
-      expect(data.inactive).toBe(false);
+      expect(data.name).toBeTruthy();
     }, 30000);
 
-    itIfApi('runs full validation and reports active status', async () => {
+    itIfApi('runs full validation', async () => {
       const result = await company.validateAndGetCompany();
-      expect(result.status).toBe('active');
       expect(result.company).toBe(COMPANY_NAME);
       expect(result.cif).toBe(TEST_CIF);
     }, 30000);

@@ -51,9 +51,7 @@ const CACHED_DATA = {
   name: 'LSEG BUSINESS SERVICES RM S.R.L.',
   address: 'MUNICIPIUL BUCUREŞTI, SECTOR 1, BLD IANCU DE HUNEDOARA, NR.48, ET.9',
   registrationNumber: 'J2014005735405',
-  caenCode: '6220',
-  inactive: false,
-  onrcStatusLabel: 'Funcțiune'
+  caenCode: '6220'
 };
 
 describe('scraper/anaf.js', () => {
@@ -92,7 +90,7 @@ describe('scraper/anaf.js', () => {
 
     it('should include statusLabel in results', async () => {
       mockFetch.mockResolvedValue(cuifirmaSearchResponse([
-        { cui: 39176747, name: 'LSEG BUSINESS SERVICES RM S.R.L.', is_active: true }
+        { cui: 39176747, name: 'LSEG BUSINESS SERVICES RM S.R.L.', status_label: 'Funcțiune' }
       ]));
 
       const results = await anaf.searchCompany('LSEG');

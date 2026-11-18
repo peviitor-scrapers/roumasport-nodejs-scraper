@@ -96,8 +96,8 @@ NEVER use paths outside the project (e.g. `C:\Users\...\AppData\Local\Temp\openc
 ### 4. Testing
 ```bash
 npm run test:unit
-npm run test:integration   # needs ANAF
-npm run test:e2e           # needs ANAF
+npm run test:integration   # needs CUIScan/CUIFirma
+npm run test:e2e           # needs CUIScan/CUIFirma
 npm run test:consistency   # needs GITHUB_REPOSITORY + GITHUB_TOKEN
 ```
 
@@ -111,6 +111,10 @@ npm run test:consistency   # needs GITHUB_REPOSITORY + GITHUB_TOKEN
 - `scraper/company.js`
 - `scraper/job-validator.js`
 - `scraper/validate-jobs.js`
+
+Exception: issues #24/#25 intentionally updated `anaf.js`/`company.js` to retire
+an obsolete company-data endpoint and the company-status job-deletion path.
+Derived scrapers should keep the current generic versions of those modules.
 
 ### 7. Maintenance Agent
 See [MAINTENANCE.md](MAINTENANCE.md) for the full maintenance workflow.
