@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Company status no longer gates scraping or triggers job deletion. The unused
   `deleteJobsByCIF()` API helper was removed; company-core `status` remains a
   config value only (#25).
+- Performance rework: real `AbortSignal.timeout()` deadlines, bounded-parallel
+  sitemap/detail fetches and URL checks, HTML reuse in `dropDeadUrls` (no
+  second GET for careers jobs), `Set`-based dedup, and memoized live API calls
+  in integration/consistency tests. The ~109 s live careers scrape in e2e is
+  now opt-in via `RUN_LIVE_SCRAPE=1`, and the public docs page polls every 5
+  minutes with a pagination cap. CI installs with `npm ci` and an npm cache;
+  the daily `Tests` schedule now runs only job validation, avoiding a second
+  full suite alongside `scrape.yml` (#26). Full suite: 122 s → 13 s.
 
 ## [1.3.0] - 2026-09-23
 

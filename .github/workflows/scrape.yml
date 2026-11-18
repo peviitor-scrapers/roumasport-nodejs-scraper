@@ -23,13 +23,14 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '24'
+          cache: 'npm'
           
       - name: Sync with remote
         if: github.event_name != 'pull_request'
         run: git pull origin main --rebase -X theirs
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Ensure company exists in company core
         # Real write, so it must respect BOTH gates real writes need:

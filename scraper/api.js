@@ -281,6 +281,24 @@ async function checkUrl(url) {
 // VERIFICATION WORKFLOW
 // ============================================================================
 
+// Bound in-flight HEAD requests; results stay in input order for logging.
+async function mapWithConcurrency(items, worker, limit = 5) {
+  const results = new Array(items.length);
+  let next = 0;
+  const runners = Array.from(
+    { length: Math.max(1, Math.min(limit, items.length)) },
+    async () => {
+      while (true) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await worker(items[i], i);
+      }
+    }
+  );
+  await Promise.all(runners);
+  return results;
+}
+
 export async function runVerification(cif) {
   console.log("=== Verify SOLR Jobs ===\n");
 
@@ -292,19 +310,17 @@ export async function runVerification(cif) {
     console.log(`${i+1}. ${job.title} (${job.location?.join(', ')}) - ${job.workmode}`);
   });
 
+  const checks = await mapWithConcurrency(result.docs, (job) => checkUrl(job.url));
   const invalidUrls = [];
-  for (let i = 0; i < result.docs.length; i++) {
+  checks.forEach((res, i) => {
     const job = result.docs[i];
-    const res = await checkUrl(job.url);
     console.log(`[${i+1}/${result.docs.length}] ${res.status > 0 ? res.status : 'ERR'} - ${job.url}`);
     if (!res.valid) invalidUrls.push(job.url);
-  }
+  });
 
   if (invalidUrls.length > 0) {
     console.log(`\n⚠️ ${invalidUrls.length} invalid URLs found - deleting via API...`);
-    for (const url of invalidUrls) {
-      await deleteJobByUrl(url);
-    }
+    await mapWithConcurrency(invalidUrls, (url) => deleteJobByUrl(url), 3);
     console.log(`✅ Deleted ${invalidUrls.length} invalid jobs via API`);
   } else {
     console.log("\n✅ All URLs valid");

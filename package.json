@@ -31,6 +31,6 @@
       "default",
       "jest-html-reporter"
     ],
-    "testTimeout": 30000
+    "testTimeout": 10000
   }
 }

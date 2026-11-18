@@ -1,13 +1,17 @@
 import { jest } from '@jest/globals';
 
-// dropDeadUrls' only dependency is validateByContent -- mock it here, in its
-// own file, so index.js's dynamic import gets the mocked module without
-// disturbing index.test.js's own (unmocked) import of the same file.
-const mockValidateByContent = jest.fn();
+// dropDeadUrls now does its own GET with a real AbortSignal timeout for jobs
+// that were not fetched during the scrape. Mock node-fetch here so the tests
+// stay offline and fast.
+const mockFetch = jest.fn();
 
-jest.unstable_mockModule('../../scraper/job-validator.js', () => ({
-  validateByContent: mockValidateByContent
-}));
+jest.unstable_mockModule('node-fetch', () => ({ default: mockFetch }));
+
+const htmlResponse = (status, body = '<html><body>Job</body></html>') => ({
+  ok: status >= 200 && status < 300,
+  status,
+  text: async () => body
+});
 
 describe('dropDeadUrls', () => {
   let index;
@@ -17,14 +21,13 @@ describe('dropDeadUrls', () => {
   });
 
   beforeEach(() => {
-    mockValidateByContent.mockReset();
+    mockFetch.mockReset();
   });
 
   it('keeps active jobs and drops expired or erroring ones', async () => {
-    mockValidateByContent.mockImplementation(async (url) => {
-      const status = url.includes('good') ? 'active' : 'expired';
-      return { url, status, httpStatus: status === 'active' ? 200 : 404, title: null, error: null };
-    });
+    mockFetch.mockImplementation(async (url) =>
+      htmlResponse(url.includes('good') ? 200 : 404)
+    );
 
     const jobs = [
       { url: 'https://x/good/', title: 'Good' },
@@ -35,10 +38,18 @@ describe('dropDeadUrls', () => {
     expect(kept.map(j => j.title)).toEqual(['Good']);
   });
 
+  it('drops soft-404s whose HTTP status is 200', async () => {
+    mockFetch.mockResolvedValue(
+      htmlResponse(200, '<html>Sorry, this position is no longer available</html>')
+    );
+
+    const kept = await index.dropDeadUrls([{ url: 'https://x/old/', title: 'Old' }]);
+
+    expect(kept).toEqual([]);
+  });
+
   it('returns an empty array when every job fails live validation', async () => {
-    mockValidateByContent.mockResolvedValue({
-      url: 'x', status: 'expired', httpStatus: 404, title: null, error: null
-    });
+    mockFetch.mockResolvedValue(htmlResponse(404));
 
     const kept = await index.dropDeadUrls([{ url: 'https://x/1/', title: 'One' }]);
 

@@ -27,6 +27,13 @@ async function fetchLiveCompanyRecord() {
   return data?.data?.[0] || null;
 }
 
+// Both tests assert against the same live record; fetch it once per run.
+let liveRecordPromise;
+function fetchLiveCompanyRecordOnce() {
+  if (!liveRecordPromise) liveRecordPromise = fetchLiveCompanyRecord();
+  return liveRecordPromise;
+}
+
 describe("Company Model (live peviitor record)", () => {
   it("COMPANY_MODEL_FIELDS declares id and company as required", () => {
     const required = COMPANY_MODEL_FIELDS.filter((f) => f.required).map((f) => f.name);
@@ -41,7 +48,7 @@ describe("Company Model (live peviitor record)", () => {
 
     let record;
     try {
-      record = await fetchLiveCompanyRecord();
+      record = await fetchLiveCompanyRecordOnce();
     } catch (e) {
       console.log(`⚠️ Could not reach api.peviitor.ro (${e.message}) — skipping live check`);
       return;
@@ -73,7 +80,7 @@ describe("Company Model (live peviitor record)", () => {
 
     let record;
     try {
-      record = await fetchLiveCompanyRecord();
+      record = await fetchLiveCompanyRecordOnce();
     } catch (e) {
       console.log(`⚠️ Could not reach api.peviitor.ro (${e.message}) — skipping live check`);
       return;

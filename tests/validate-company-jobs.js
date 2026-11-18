@@ -30,6 +30,24 @@ const COMPANY = companyConfig.company;
 const OWN_URL_PREFIX = scraperConfig.ownJobUrlPrefix;
 const isOwnJob = (url) => typeof url === "string" && url.startsWith(OWN_URL_PREFIX);
 
+// Bound in-flight URL checks/deletes while keeping results in input order.
+async function mapWithConcurrency(items, worker, limit = 5) {
+  const results = new Array(items.length);
+  let next = 0;
+  const runners = Array.from(
+    { length: Math.max(1, Math.min(limit, items.length)) },
+    async () => {
+      while (true) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await worker(items[i], i);
+      }
+    }
+  );
+  await Promise.all(runners);
+  return results;
+}
+
 function getTimeout() {
   const idx = process.argv.indexOf("--timeout");
   if (idx !== -1 && idx + 1 < process.argv.length) {
@@ -61,13 +79,18 @@ async function main() {
     return;
   }
 
-  const invalid = [];
-  for (const job of result.docs) {
+  // A browser check launches Chromium per URL, so keep those serial.
+  const parallelLimit = mode === "browser" ? 1 : 5;
+  const checks = await mapWithConcurrency(result.docs, (job) => {
     const opts = timeout ? { timeout } : {};
-    const check = await validate(job.url, opts);
+    return validate(job.url, opts);
+  }, parallelLimit);
+  const invalid = [];
+  checks.forEach((check, i) => {
+    const job = result.docs[i];
     console.log(`[${check.httpStatus}] ${check.status === "active" ? "OK" : check.status} - ${job.title}`);
     if (check.status !== "active") invalid.push(job);
-  }
+  });
 
   if (invalid.length === 0) {
     console.log("\n✅ All jobs valid");
@@ -91,10 +114,10 @@ async function main() {
     return;
   }
   if (doDelete) {
-    for (const job of ours) {
+    await mapWithConcurrency(ours, async (job) => {
       await deleteJobByUrl(job.url);
       console.log(`Deleted: ${job.title}`);
-    }
+    }, 3);
   }
 }
 

@@ -52,8 +52,11 @@ jobs:
 
   validate-jobs:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     needs: Automation-Tests
+    # On the daily schedule Automation-Tests is intentionally skipped, so
+    # `always()` is needed to let this job run. Manual dispatch keeps the old
+    # ordering: validation only runs after the full suite has passed.
+    if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && needs.Automation-Tests.result == 'success'))
     
     steps:
       - uses: actions/checkout@v7
@@ -62,9 +65,10 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '24'
+          cache: 'npm'
           
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         
       - name: Validate and remove expired jobs
         run: |
@@ -81,6 +85,9 @@ jobs:
 
   ensure-company-core:
     runs-on: ubuntu-latest
+    # The daily schedule only runs validate-jobs; the full test suite already
+    # runs daily inside the Scrape workflow and on every push/PR here.
+    if: github.event_name != 'schedule'
 
     steps:
       - uses: actions/checkout@v7
@@ -163,13 +170,14 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '24'
+          cache: 'npm'
           
       - name: Sync with remote
         if: github.event_name != 'pull_request'
         run: git pull origin main --rebase -X theirs
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run Unit Tests
         run: |

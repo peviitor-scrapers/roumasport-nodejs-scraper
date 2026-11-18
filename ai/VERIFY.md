@@ -5,13 +5,17 @@ After making changes to this repo, run through these steps in order.
 ## 1. Rulează testele local
 
 ```bash
-npm test
+npm test                      # toate suitele (unit + integration + e2e + consistency)
+# SAU, când vrei doar o singură suită:
 npm run test:unit
 npm run test:integration
 npm run test:e2e
+npm run test:consistency
 ```
 
-Toate testele trebuie să treacă (0 failed).
+Toate testele trebuie să treacă (0 failed). Testul live care descarcă toate
+paginile de job (~109 s) este oprit by default; rulează-l explicit cu
+`RUN_LIVE_SCRAPE=1 npm run test:e2e` când vrei să verifici site-ul real.
 
 ## 2. Verifică fiecare GitHub Actions workflow
 

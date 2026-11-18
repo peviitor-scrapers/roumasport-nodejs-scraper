@@ -42,6 +42,21 @@ const cifMatches = (value) => String(value).replace(/^0+/, '') === COMPANY_CIF.r
 const stripDiacritics = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '');
 const namesMatch = (a, b) => stripDiacritics(a).toUpperCase() === stripDiacritics(b).toUpperCase();
 
+// Many tests assert different things about the same live records. Share one
+// in-flight request per endpoint so the suite doesn't hit the API N times.
+const liveOnce = (() => {
+  const cache = new Map();
+  return (key, factory) => {
+    if (!cache.has(key)) cache.set(key, factory());
+    return cache.get(key);
+  };
+})();
+const companyByCifOnce = (api) => liveOnce('company', () => api.getCompanyByCif(COMPANY_CIF));
+const solrOnce = (api) => liveOnce('solr', () => api.querySOLR(COMPANY_CIF));
+const searchOnce = (anaf) => liveOnce('search', () => anaf.searchCompany(COMPANY_NAME));
+const detailsOnce = (anaf, cif) => liveOnce(`details:${cif}`, () => anaf.getCompanyFromANAF(cif));
+const validationOnce = (companyModule) => liveOnce('validation', () => companyModule.validateAndGetCompany());
+
 async function checkApiAvailability() {
   try {
     const res = await fetch(`${API_BASE}/scraper/jobs/?cif=${COMPANY_CIF}&rows=1`, {
@@ -102,7 +117,7 @@ describe('Integration: API Workflow', () => {
     });
 
     itIfAnaf('should search for company brand and find the company', async () => {
-      const results = await anaf.searchCompany(COMPANY_NAME);
+      const results = await searchOnce(anaf);
 
       expect(Array.isArray(results)).toBe(true);
       if (results.length === 0) { console.warn('CUIFirma/CUIScan search returned nothing - upstream search unavailable, skipping'); return; }
@@ -120,7 +135,7 @@ describe('Integration: API Workflow', () => {
     }, 15000);
 
     itIfAnaf('should fetch company details by valid CIF', async () => {
-      const data = await anaf.getCompanyFromANAF(COMPANY_CIF);
+      const data = await detailsOnce(anaf, COMPANY_CIF);
 
       expect(data).toBeDefined();
       expect(namesMatch(data.name, COMPANY_NAME)).toBe(true);
@@ -146,7 +161,7 @@ describe('Integration: API Workflow', () => {
   describe('Peviitor API', () => {
     itIfApi('should return company data from Peviitor API', async () => {
       const api = await import('../../scraper/api.js');
-      const company = await api.getCompanyByCif(COMPANY_CIF);
+      const company = await companyByCifOnce(api);
       expect(company).toBeTruthy();
       // peViitor's own API returns the CIF zero-padded to 8 digits (SOLR
       // requirement, see scraper/api.js padCif()); company.json stores it
@@ -163,7 +178,7 @@ describe('Integration: API Workflow', () => {
     });
 
     itIfApi('should query company core by CIF', async () => {
-      const result = await api.getCompanyByCif(COMPANY_CIF);
+      const result = await companyByCifOnce(api);
 
       expect(result).not.toBeNull();
       expect(cifMatches(result.id)).toBe(true);
@@ -174,7 +189,7 @@ describe('Integration: API Workflow', () => {
     }, 15000);
 
     itIfApi('should have required company model fields', async () => {
-      const result = await api.getCompanyByCif(COMPANY_CIF);
+      const result = await companyByCifOnce(api);
 
       expect(result).toHaveProperty('id');
       expect(cifMatches(result.id)).toBe(true);
@@ -197,7 +212,7 @@ describe('Integration: API Workflow', () => {
     }, 15000);
 
     itIfApi('should have optional field (group) if present', async () => {
-      const result = await api.getCompanyByCif(COMPANY_CIF);
+      const result = await companyByCifOnce(api);
 
       if (result.group !== undefined) {
         expect(typeof result.group).toBe('string');
@@ -213,7 +228,7 @@ describe('Integration: API Workflow', () => {
     });
 
     itIfApi('should query jobs by CIF and return valid data', async () => {
-      const result = await api.querySOLR(COMPANY_CIF);
+      const result = await solrOnce(api);
 
       if (result.numFound === 0) {
         console.log('⚠️ No jobs in API — skipping job field assertions (scraper may not have run yet)');
@@ -233,7 +248,7 @@ describe('Integration: API Workflow', () => {
     }, 15000);
 
     itIfApi('should not have duplicate URLs for same CIF', async () => {
-      const result = await api.querySOLR(COMPANY_CIF);
+      const result = await solrOnce(api);
 
       const urls = result.docs.map(j => j.url);
       const uniqueUrls = new Set(urls);
@@ -242,7 +257,7 @@ describe('Integration: API Workflow', () => {
 
     itIfApi('should have valid status values for all jobs', async () => {
       const validStatuses = ['scraped', 'tested', 'verified', 'published'];
-      const result = await api.querySOLR(COMPANY_CIF);
+      const result = await solrOnce(api);
 
       for (const job of result.docs) {
         expect(validStatuses).toContain(job.status);
@@ -250,7 +265,7 @@ describe('Integration: API Workflow', () => {
     }, 15000);
 
     itIfApi('should have valid CIF format for all jobs', async () => {
-      const result = await api.querySOLR(COMPANY_CIF);
+      const result = await solrOnce(api);
 
       for (const job of result.docs) {
         expect(job.cif).toMatch(/^\d{6,9}$/);
@@ -270,27 +285,27 @@ describe('Integration: API Workflow', () => {
     });
 
     itIfAnaf('should complete the CUIScan → Peviitor validation path', async () => {
-      const searchResults = await anaf.searchCompany(COMPANY_NAME);
+      const searchResults = await searchOnce(anaf);
       if (searchResults.length === 0) { console.warn('CUIFirma/CUIScan search returned nothing - upstream search unavailable, skipping'); return; }
 
       const matchedCompany = searchResults.find(c => c.cui.toString() === COMPANY_CIF);
       expect(matchedCompany).toBeDefined();
 
-      const anafData = await anaf.getCompanyFromANAF(matchedCompany.cui.toString());
+      const anafData = await detailsOnce(anaf, matchedCompany.cui.toString());
       expect(namesMatch(anafData.name, COMPANY_NAME)).toBe(true);
     }, 30000);
 
     itIfApi('should have matching CIF in company core', async () => {
-      const companyResult = await companyModule.validateAndGetCompany();
+      const companyResult = await validationOnce(companyModule);
 
-      const companyData = await api.getCompanyByCif(COMPANY_CIF);
+      const companyData = await companyByCifOnce(api);
       expect(companyData).not.toBeNull();
       expect(cifMatches(companyData.id)).toBe(true);
       expect(companyData.company).toBe(COMPANY_NAME);
     }, 30000);
 
     itIfApi('should validate company and query API for existing jobs', async () => {
-      const companyResult = await companyModule.validateAndGetCompany();
+      const companyResult = await validationOnce(companyModule);
 
       expect(companyResult.company).toBe(COMPANY_NAME);
       expect(companyResult.cif).toBe(COMPANY_CIF);

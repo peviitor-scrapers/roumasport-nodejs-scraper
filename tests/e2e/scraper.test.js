@@ -20,6 +20,10 @@ function gate(cond) {
     cond ? it(name, fn, timeout) : it.skip(`${name} (skipped)`, fn, timeout);
 }
 const itLive = gate(CONFIGURED);
+// The live careers-page scrape downloads every job detail page sequentially
+// in the site's fallback path (~109s here). Keep it as an opt-in canary so a
+// normal `npm test` stays fast; CI's nightly scrape covers the same site.
+const itLiveScrape = gate(CONFIGURED && process.env.RUN_LIVE_SCRAPE === '1');
 
 // anaf.js reads company data from cuiscan.ro and cuifirma.ro only, so the
 // availability probe checks those two sources.
@@ -90,7 +94,7 @@ describe('E2E: Full Scraping Pipeline', () => {
       }
     }, 60000);
 
-    itLive('scrapes the careers page without crashing', async () => {
+    itLiveScrape('scrapes the careers page without crashing', async () => {
       let jobs = [];
       try { jobs = await index.scrapeCareers(); } catch (err) { console.log('scrape:', err.message); }
       expect(Array.isArray(jobs)).toBe(true);

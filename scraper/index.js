@@ -5,7 +5,7 @@ import { validateAndGetCompany } from "./company.js";
 import { querySOLR, upsertJobs, upsertCompany, deleteJobByUrl } from "./api.js";
 import { generateJobsMarkdown } from "./markdown-generator.js";
 import { filterValidJobs, assertScrapeYieldedJobs } from "./validate.js";
-import { validateByContent } from "./job-validator.js";
+import { DEFAULT_EXPIRED_KEYWORDS } from "./job-validator.js";
 import { locateArticles, firstMatch, regexText, textFromHtml } from "./self-healing.js";
 import companyConfig from "./config/company.js";
 import scraperConfig, { userAgent } from "./config/scraper.js";
@@ -13,8 +13,13 @@ import scraperConfig, { userAgent } from "./config/scraper.js";
 const COMPANY_CIF = companyConfig.id;
 
 const TIMEOUT = scraperConfig.requestTimeoutMs;
-const PAGE_DELAY = scraperConfig.pageDelayMs;
 const OWN_URL_PREFIX = scraperConfig.ownJobUrlPrefix;
+// Bounded parallelism for the per-job HTTP checks. Enough to remove the old
+// 1s-per-job delay, small enough not to hammer the careers host.
+const MAX_PARALLEL_FETCHES = 5;
+// HTML/status of detail pages already downloaded during scrapeCareers().
+// dropDeadUrls reuses these so careers jobs are not fetched twice in one run.
+const livePageChecks = new Map();
 
 // The path segment that marks an individual job permalink, derived from
 // `ownJobUrlPrefix` (e.g. "https://site.com/jobs/" -> "/jobs/"). Used to pick
@@ -31,6 +36,26 @@ const CAREERS_SOURCE = (() => {
 })();
 
 let COMPANY_NAME = null;
+
+// Run `worker` over `items` with at most `limit` in flight, preserving the
+// input order of the results. A throwing worker rejects the whole batch, so
+// callers handle their own per-item errors.
+async function mapWithConcurrency(items, worker, limit = MAX_PARALLEL_FETCHES) {
+  const results = new Array(items.length);
+  let next = 0;
+  const runners = Array.from(
+    { length: Math.max(1, Math.min(limit, items.length)) },
+    async () => {
+      while (true) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await worker(items[i], i);
+      }
+    }
+  );
+  await Promise.all(runners);
+  return results;
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -133,7 +158,7 @@ async function fetchSitemapJobUrls() {
   if (!sitemapUrl || sitemapUrl.startsWith("{{")) return []; // not configured
   try {
     const res = await fetch(sitemapUrl, {
-      timeout: TIMEOUT,
+      signal: AbortSignal.timeout(TIMEOUT),
       headers: { "User-Agent": userAgent }
     });
     if (!res.ok) {
@@ -160,7 +185,7 @@ async function fetchSitemapJobUrls() {
 
 async function fetchListing() {
   const res = await fetch(scraperConfig.sources.listing, {
-    timeout: TIMEOUT,
+    signal: AbortSignal.timeout(TIMEOUT),
     headers: { "User-Agent": userAgent }
   });
   if (!res.ok) throw new Error(`listing returned ${res.status}`);
@@ -294,9 +319,9 @@ function parseJobDetail(html) {
 async function scrapeCareers() {
   console.log(`Scraping ${scraperConfig.sources.listing} ...`);
   const jobs = [];
+  livePageChecks.clear();
 
   const sitemapEntries = await fetchSitemapJobUrls();
-  await sleep(PAGE_DELAY);
 
   let listingItems = [];
   try {
@@ -373,20 +398,36 @@ async function scrapeCareers() {
   } else if (sitemapEntries.length > 0) {
     // Listing unreachable — fall back to sitemap-only, deriving titles from slugs.
     console.log("  Falling back to sitemap-only (titles from slugs)");
-    for (const e of sitemapEntries) {
-      // One detail page per job: schema.org JobPosting JSON-LD (TalentLyft ATS).
+    // One detail page per job: schema.org JobPosting JSON-LD (TalentLyft ATS).
+    // Fetch a few at a time — the old sequential loop plus a 1s sleep per job
+    // made this the dominant cost of a scrape without helping rate limits.
+    const details = await mapWithConcurrency(sitemapEntries, async (e) => {
       let detail = { title: null, city: null };
+      let html = null;
+      let httpStatus = 0;
       try {
-        const res = await fetch(e.url, { timeout: TIMEOUT, headers: { "User-Agent": userAgent } });
-        if (!res.ok) { console.log(`  ${e.url} -> ${res.status}, skipped`); await sleep(PAGE_DELAY); continue; }
-        detail = parseJobDetail(await res.text());
+        const res = await fetch(e.url, {
+          signal: AbortSignal.timeout(TIMEOUT),
+          headers: { "User-Agent": userAgent }
+        });
+        httpStatus = res.status;
+        if (!res.ok) {
+          console.log(`  ${e.url} -> ${res.status}, skipped`);
+        } else {
+          html = await res.text();
+          detail = parseJobDetail(html);
+        }
       } catch (err) {
         console.log(`  detail fetch failed ${e.url}: ${err.message}`);
       }
-      await sleep(PAGE_DELAY);
+      livePageChecks.set(e.url, { ok: httpStatus >= 200 && httpStatus < 300, html, httpStatus });
+      return detail;
+    });
+    for (let i = 0; i < sitemapEntries.length; i++) {
+      const detail = details[i];
       if (!detail.title) continue;
       jobs.push({
-        url: e.url,
+        url: sitemapEntries[i].url,
         title: detail.title,
         location: detail.city ? [detail.city] : scraperConfig.defaultLocation,
         workmode: scraperConfig.defaultWorkmode,
@@ -416,7 +457,7 @@ async function searchANOFM(cif) {
     };
     const res = await fetch("https://mediere.anofm.ro/api/entity/vw_public_job_posting", {
       method: "POST",
-      timeout: TIMEOUT,
+      signal: AbortSignal.timeout(TIMEOUT),
       headers: {
         "Content-Type": "application/json",
         "User-Agent": userAgent
@@ -470,24 +511,23 @@ function mapToJobModel(rawJob, cif, companyName = COMPANY_NAME) {
   return job;
 }
 
+const ROMANIAN_CITIES = [
+  'Bucharest', 'București', 'Bucuresti', 'Cluj-Napoca', 'Cluj Napoca',
+  'Timișoara', 'Timisoara', 'Iași', 'Iasi', 'Brașov', 'Brasov',
+  'Constanța', 'Constanta', 'Craiova', 'Bacău', 'Sibiu',
+  'Târgu Mureș', 'Targu Mures', 'Oradea', 'Baia Mare', 'Satu Mare',
+  'Ploiești', 'Ploiesti', 'Pitești', 'Pitesti', 'Arad', 'Galați', 'Galati',
+  'Brăila', 'Braila', 'Drobeta-Turnu Severin', 'Râmnicu Vâlcea', 'Ramnicu Valcea',
+  'Buzău', 'Buzau', 'Botoșani', 'Botosani', 'Zalău', 'Zalau', 'Hunedoara', 'Deva',
+  'Suceava', 'Bistrița', 'Bistrita', 'Tulcea', 'Călărași', 'Calarasi',
+  'Giurgiu', 'Alba Iulia', 'Slatina', 'Piatra Neamț', 'Piatra Neamt', 'Roman',
+  'Dumbrăvița', 'Dumbravita', 'Voluntari', 'Popești-Leordeni', 'Popesti-Leordeni',
+  'Chitila', 'Mogoșoaia', 'Mogosoaia', 'Otopeni', 'Dâmbovița', 'Dambovita',
+  'Sighișoara', 'Sighisoara', 'Sovata', 'Reghin', 'Târnăveni', 'Tarnaveni'
+];
+const CITY_SET = new Set(ROMANIAN_CITIES.map(c => c.toLowerCase()));
+
 function transformJobsForSOLR(payload) {
-  const romanianCities = [
-    'Bucharest', 'București', 'Bucuresti', 'Cluj-Napoca', 'Cluj Napoca',
-    'Timișoara', 'Timisoara', 'Iași', 'Iasi', 'Brașov', 'Brasov',
-    'Constanța', 'Constanta', 'Craiova', 'Bacău', 'Sibiu',
-    'Târgu Mureș', 'Targu Mures', 'Oradea', 'Baia Mare', 'Satu Mare',
-    'Ploiești', 'Ploiesti', 'Pitești', 'Pitesti', 'Arad', 'Galați', 'Galati',
-    'Brăila', 'Braila', 'Drobeta-Turnu Severin', 'Râmnicu Vâlcea', 'Ramnicu Valcea',
-    'Buzău', 'Buzau', 'Botoșani', 'Botosani', 'Zalău', 'Zalau', 'Hunedoara', 'Deva',
-    'Suceava', 'Bistrița', 'Bistrita', 'Tulcea', 'Călărași', 'Calarasi',
-    'Giurgiu', 'Alba Iulia', 'Slatina', 'Piatra Neamț', 'Piatra Neamt', 'Roman',
-    'Dumbrăvița', 'Dumbravita', 'Voluntari', 'Popești-Leordeni', 'Popesti-Leordeni',
-    'Chitila', 'Mogoșoaia', 'Mogosoaia', 'Otopeni', 'Dâmbovița', 'Dambovita',
-    'Sighișoara', 'Sighisoara', 'Sovata', 'Reghin', 'Târnăveni', 'Tarnaveni'
-  ];
-
-  const citySet = new Set(romanianCities.map(c => c.toLowerCase()));
-
   const normalizeWorkmode = (wm) => {
     if (!wm) return undefined;
     const lower = wm.toLowerCase();
@@ -503,7 +543,7 @@ function transformJobsForSOLR(payload) {
       const validLocations = (job.location || []).filter(loc => {
         const lower = loc.toLowerCase().trim();
         if (lower === 'romania' || lower === 'românia') return true;
-        return citySet.has(lower);
+        return CITY_SET.has(lower);
       }).map(loc => loc.toLowerCase() === 'romania' ? 'România' : loc);
 
       return {
@@ -517,28 +557,59 @@ function transformJobsForSOLR(payload) {
   return transformed;
 }
 
+// GET-check a URL with a real deadline. Only used for jobs that were not
+// fetched during the scrape (e.g. ANOFM) -- careers pages already have HTML.
+async function checkJobUrl(url) {
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(TIMEOUT),
+      headers: {
+        "User-Agent": userAgent,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      },
+      redirect: "follow"
+    });
+    const text = await res.text().catch(() => "");
+    const lower = text.toLowerCase();
+    if (!res.ok || DEFAULT_EXPIRED_KEYWORDS.some(kw => lower.includes(kw))) {
+      return { status: "expired", httpStatus: res.status, error: null };
+    }
+    return { status: "active", httpStatus: res.status, error: null };
+  } catch (err) {
+    return { status: "error", httpStatus: 0, error: err.message };
+  }
+}
+
 /**
  * Pre-upload safety net: GET-check every job URL and drop the ones that don't
- * resolve. filterValidJobs only checks URL *shape* (a syntactically valid
- * http(s) URL); job-validator.js can actually tell a live job from a 404, but
- * nothing called it before an upload -- this is what let a URL-construction
- * bug reach peviitor undetected.
+ * resolve. filterValidJobs only checks URL *shape*; a real GET is needed to
+ * tell a live job from a 404 or a soft-404 ("no longer available" on a 200).
  *
- * Uses validateByContent (GET), not validateByHead: at least one real
- * careers site (Workday-based) answers every HEAD request with a generic 404
- * regardless of whether the resource exists -- HEAD-only would have dropped
- * every real job.
+ * Uses GET, not HEAD: at least one real careers site (Workday-based) answers
+ * every HEAD request with a generic 404 regardless of whether the resource
+ * exists -- HEAD-only would have dropped every real job. Careers pages already
+ * downloaded during the scrape are checked from cached HTML; only jobs from
+ * other sources trigger a new GET. Checks run with bounded concurrency.
  */
 async function dropDeadUrls(jobs) {
-  const alive = [];
-  for (const job of jobs) {
-    const result = await validateByContent(job.url);
-    if (result.status === "active") {
-      alive.push(job);
+  const results = await mapWithConcurrency(jobs, async (job) => {
+    let result;
+    const cached = livePageChecks.get(job.url);
+    if (cached) {
+      const lower = (cached.html || "").toLowerCase();
+      const expired = !cached.ok || DEFAULT_EXPIRED_KEYWORDS.some(kw => lower.includes(kw));
+      result = expired
+        ? { status: "expired", httpStatus: cached.httpStatus || 0, error: null }
+        : { status: "active", httpStatus: cached.httpStatus, error: null };
     } else {
-      console.warn(`  dropped "${job.title}" (${job.url}): live URL check failed — ${result.error || `HTTP ${result.httpStatus}`}`);
+      result = await checkJobUrl(job.url);
     }
-  }
+    if (result.status === "active") return job;
+    console.warn(`  dropped "${job.title}" (${job.url}): live URL check failed — ${result.error || `HTTP ${result.httpStatus}`}`);
+    return null;
+  });
+
+  const alive = results.filter(Boolean);
   if (alive.length < jobs.length) {
     console.warn(`  ${jobs.length - alive.length}/${jobs.length} job(s) failed live URL validation and were dropped`);
   }
@@ -614,9 +685,11 @@ async function main(dryRun = process.argv.includes("--dry-run")) {
     rawJobs.push(...careerJobs);
 
     const anofmJobs = await searchANOFM(cif);
+    const knownUrls = new Set(rawJobs.map(j => j.url));
     for (const job of anofmJobs) {
-      if (!rawJobs.find(j => j.url === job.url)) {
+      if (!knownUrls.has(job.url)) {
         rawJobs.push(job);
+        knownUrls.add(job.url);
       }
     }
     console.log(`Jobs from ANOFM: ${anofmJobs.length}`);
