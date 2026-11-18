@@ -28,10 +28,10 @@ function clearAllCaches() {
   }
 }
 
-function anafCompanyResponse(data) {
+function cuiscanCompanyResponse(data) {
   return {
     ok: true,
-    json: async () => ({ data, success: true })
+    json: async () => data
   };
 }
 
@@ -49,15 +49,15 @@ function solrResponse(total, data) {
   };
 }
 
-const EXAMPLE_ANAF_RECORD = {
+const EXAMPLE_CUISCAN_RECORD = {
   cui: 12345678,
-  name: 'EXAMPLE COMPANY SRL',
-  address: 'STR. EXAMPLE, NR.1, LOCALITATE',
-  caenCode: '0000',
-  inactive: false,
-  vatRegistered: true,
+  denumire: 'EXAMPLE COMPANY SRL',
+  adresa: 'STR. EXAMPLE, NR.1, LOCALITATE',
+  codCaen: '0000',
+  activ: true,
+  platitorTVA: true,
   eFacturaRegistered: false,
-  headquartersAddress: { locality: 'Iași' }
+  headquartersAddress: { localitate: 'Iași' }
 };
 
 describe('company.js', () => {
@@ -82,7 +82,7 @@ describe('company.js', () => {
 
   describe('getCompanyData (no cache)', () => {
     it('should fetch the company via direct CIF lookup and return company data', async () => {
-      mockFetch.mockResolvedValueOnce(anafCompanyResponse(EXAMPLE_ANAF_RECORD));
+      mockFetch.mockResolvedValueOnce(cuiscanCompanyResponse(EXAMPLE_CUISCAN_RECORD));
 
       const result = await company.getCompanyData();
 
@@ -93,23 +93,23 @@ describe('company.js', () => {
       expect(result.anafData.name).toBe('EXAMPLE COMPANY SRL');
     });
 
-    it('should throw when ANAF returns no data', async () => {
-      mockFetch.mockResolvedValueOnce(anafCompanyResponse(null));
+    it('should throw when CUIScan returns no data', async () => {
+      mockFetch.mockResolvedValueOnce(cuiscanCompanyResponse(null));
 
-      await expect(company.getCompanyData()).rejects.toThrow('No data from ANAF');
+      await expect(company.getCompanyData()).rejects.toThrow('CUIScan returned no data');
     });
 
-    it('should throw when ANAF returns no company name', async () => {
-      mockFetch.mockResolvedValueOnce(anafCompanyResponse({ cui: 12345678, name: null }));
+    it('should throw when CUIScan returns no company name', async () => {
+      mockFetch.mockResolvedValueOnce(cuiscanCompanyResponse({ cui: 12345678, denumire: null }));
 
-      await expect(company.getCompanyData()).rejects.toThrow('ANAF returned no company name');
+      await expect(company.getCompanyData()).rejects.toThrow('CUIScan returned no company name');
     });
   });
 
   describe('getCompanyData (with cache)', () => {
     const cachedData = {
       validatedAt: new Date().toISOString(),
-      anaf: EXAMPLE_ANAF_RECORD,
+      anaf: { ...EXAMPLE_CUISCAN_RECORD, name: EXAMPLE_CUISCAN_RECORD.denumire },
       summary: {
         company: 'EXAMPLE COMPANY SRL',
         cif: '12345678',
@@ -138,7 +138,7 @@ describe('company.js', () => {
 
     it('should return company data with status active', async () => {
       mockFetch
-        .mockResolvedValueOnce(anafCompanyResponse(EXAMPLE_ANAF_RECORD))
+        .mockResolvedValueOnce(cuiscanCompanyResponse(EXAMPLE_CUISCAN_RECORD))
         .mockResolvedValueOnce(solrResponse(5, [
           { url: 'https://test.com/1', title: 'Job 1' },
           { url: 'https://test.com/2', title: 'Job 2' }
@@ -155,10 +155,10 @@ describe('company.js', () => {
     });
 
     it('should return inactive status when company is inactive', async () => {
-      const inactiveRecord = { ...EXAMPLE_ANAF_RECORD, inactive: true };
+      const inactiveRecord = { ...EXAMPLE_CUISCAN_RECORD, activ: false };
 
       mockFetch
-        .mockResolvedValueOnce(anafCompanyResponse(inactiveRecord))
+        .mockResolvedValueOnce(cuiscanCompanyResponse(inactiveRecord))
         .mockResolvedValueOnce(solrResponse(0, []));
 
       const result = await company.validateAndGetCompany();
@@ -167,10 +167,10 @@ describe('company.js', () => {
     });
 
     it('deletes jobs by CIF when an inactive company still has jobs in SOLR', async () => {
-      const inactiveRecord = { ...EXAMPLE_ANAF_RECORD, inactive: true };
+      const inactiveRecord = { ...EXAMPLE_CUISCAN_RECORD, activ: false };
 
       mockFetch
-        .mockResolvedValueOnce(anafCompanyResponse(inactiveRecord))
+        .mockResolvedValueOnce(cuiscanCompanyResponse(inactiveRecord))
         .mockResolvedValueOnce(solrResponse(3, []))
         .mockResolvedValueOnce(peviitorResponse([]))
         .mockResolvedValueOnce({ ok: true, json: async () => ({ count: 3 }) }); // deleteJobsByCIF
@@ -183,14 +183,10 @@ describe('company.js', () => {
     });
 
     it('regression: dry_run=true must never call deleteJobsByCIF, even with jobs present', async () => {
-      // Before this fix, validateAndGetCompany had no dryRun parameter at all --
-      // an inactive company with existing jobs always fired a real, CIF-wide
-      // DELETE against peviitor's live API, with no way for a caller to check
-      // status safely first.
-      const inactiveRecord = { ...EXAMPLE_ANAF_RECORD, inactive: true };
+      const inactiveRecord = { ...EXAMPLE_CUISCAN_RECORD, activ: false };
 
       mockFetch
-        .mockResolvedValueOnce(anafCompanyResponse(inactiveRecord))
+        .mockResolvedValueOnce(cuiscanCompanyResponse(inactiveRecord))
         .mockResolvedValueOnce(solrResponse(3, []));
 
       const result = await company.validateAndGetCompany(true);

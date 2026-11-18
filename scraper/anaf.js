@@ -1,21 +1,23 @@
 /**
- * Company Data Module — ANAF + CUIScan + CUIFirma
+ * Company Data Module — CUIScan + CUIFirma
  *
- * Strategy: 1 try demoanaf.ro → 1 try cuiscan.ro → cached data. No retries.
- * Search: 1 try demoanaf.ro → 1 try cuifirma.ro.
+ * Strategy: 1 try cuiscan.ro (company details by CIF). No retries.
+ * Search: 1 try cuifirma.ro (brand search).
+ *
+ * demoanaf.ro's free API tier was sunset 2026-08-21 (permanent HTTP 402 on
+ * every /api/* call) and is fully removed. CUIScan and CUIFirma are now the
+ * only sources for company data.
  */
 
 import fetch from "node-fetch";
 import { userAgent } from "./config/scraper.js";
 
-const ANAF_API_URL = "https://demoanaf.ro/api/company/";
-const ANAF_SEARCH_URL = "https://demoanaf.ro/api/search";
 const CUISCAN_API_URL = "https://cuiscan.ro/api.php";
 const CUISFIRMA_SEARCH_URL = "https://cuifirma.ro/api/search";
 const TIMEOUT_MS = 10000;
 
 // ============================================================================
-// CUIScan — company details fallback
+// CUIScan — company details
 // ============================================================================
 
 function mapCuiscanToAnafFormat(data) {
@@ -87,37 +89,12 @@ async function fetchFromCuiscan(cif) {
   });
   if (!res.ok) throw new Error(`CUIScan API error: ${res.status}`);
   const json = await parseJsonResponse(res, "CUIScan");
-  if (!json || !json.denumire) throw new Error("CUIScan returned no data");
+  if (!json) throw new Error("CUIScan returned no data");
   return mapCuiscanToAnafFormat(json);
 }
 
 // ============================================================================
-// ANAF — primary source
-// ============================================================================
-
-async function fetchFromAnaf(cif) {
-  const res = await fetch(`${ANAF_API_URL}${cif}`, {
-    headers: { "User-Agent": userAgent },
-    signal: AbortSignal.timeout(TIMEOUT_MS)
-  });
-  if (!res.ok) throw new Error(`ANAF API error: ${res.status}`);
-  const json = await parseJsonResponse(res, "ANAF");
-  if (json.success === false) throw new Error(json.error?.message || "ANAF returned error");
-  return json.data || null;
-}
-
-async function searchFromAnaf(brandName) {
-  const res = await fetch(`${ANAF_SEARCH_URL}?q=${encodeURIComponent(brandName)}`, {
-    headers: { "User-Agent": userAgent },
-    signal: AbortSignal.timeout(TIMEOUT_MS)
-  });
-  if (!res.ok) throw new Error(`ANAF search error: ${res.status}`);
-  const json = await parseJsonResponse(res, "ANAF search");
-  return json.data || [];
-}
-
-// ============================================================================
-// CUIFirma — search fallback
+// CUIFirma — search
 // ============================================================================
 
 async function searchFromCuifirma(brandName) {
@@ -139,16 +116,11 @@ async function searchFromCuifirma(brandName) {
 // ============================================================================
 
 /**
- * Fetches company by CIF — ANAF first, CUIScan fallback
+ * Fetches company by CIF — CUIScan only
  */
 export async function getCompanyFromANAF(cif) {
-  try {
-    console.log(`Fetching company data for CIF: ${cif} (demoanaf.ro)...`);
-    return await fetchFromAnaf(cif);
-  } catch (err) {
-    console.log(`DemoANAF failed: ${err.message} — trying cuiscan.ro...`);
-    return await fetchFromCuiscan(cif);
-  }
+  console.log(`Fetching company data for CIF: ${cif} (cuiscan.ro)...`);
+  return await fetchFromCuiscan(cif);
 }
 
 /**
@@ -168,13 +140,8 @@ export async function getCompanyFromANAFWithFallback(cif, cachedData = null) {
 }
 
 /**
- * Searches companies by brand — ANAF first, CUIFirma fallback
+ * Searches companies by brand — CUIFirma only
  */
 export async function searchCompany(brandName) {
-  try {
-    return await searchFromAnaf(brandName);
-  } catch (err) {
-    console.log(`DemoANAF search failed: ${err.message} — trying cuifirma.ro...`);
-    return await searchFromCuifirma(brandName);
-  }
+  return await searchFromCuifirma(brandName);
 }

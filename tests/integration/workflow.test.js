@@ -4,16 +4,17 @@ import fetch from 'node-fetch';
 const API_BASE = 'https://api.peviitor.ro/v1';
 
 // demoanaf.ro's free API tier was sunset 2026-08-21 (permanent HTTP 402 on
-// every /api/* call). anaf.js already falls back to cuiscan.ro/cuifirma.ro
-// when demoanaf.ro fails, so "is ANAF available" must reflect that fallback
-// chain — probing demoanaf.ro alone would leave these tests pending forever.
+// every /api/* call). anaf.js now uses cuiscan.ro (company details) and
+// cuifirma.ro (brand search) as its only sources, so "are company data
+// sources available" must probe those instead — probing demoanaf.ro alone
+// would leave these tests pending forever.
 async function checkAnafAvailability() {
   try {
-    const [demoanaf, cuifirma] = await Promise.allSettled([
-      fetch('https://demoanaf.ro/api/search?q=test', { method: 'HEAD', signal: AbortSignal.timeout(5000) }),
+    const [cuiscan, cuifirma] = await Promise.allSettled([
+      fetch('https://cuiscan.ro/api.php?action=company&cui=test', { method: 'HEAD', signal: AbortSignal.timeout(5000) }),
       fetch('https://cuifirma.ro/api/search?q=test', { signal: AbortSignal.timeout(5000) }),
     ]);
-    return (demoanaf.status === 'fulfilled' && demoanaf.value.ok) ||
+    return (cuiscan.status === 'fulfilled' && cuiscan.value.ok) ||
            (cuifirma.status === 'fulfilled' && cuifirma.value.ok);
   } catch {
     return false;
@@ -71,7 +72,7 @@ function itIfApi(name, fn, timeout) {
   return it.skip(`${name} (skipped: ${CONFIGURED ? 'API unavailable' : 'company not configured'})`, fn, timeout);
 }
 
-// ANAF / CUIScan / CUIFirma are third-party services outside our control. When one of
+// CUIScan / CUIFirma are third-party services outside our control. When one of
 // them is down (HTTP 5xx, an HTML maintenance page, a timeout) the live check says
 // nothing about the scraper, so it must not fail the build - and send a "Run failed"
 // email every day. Real assertion failures still fail.
@@ -91,12 +92,12 @@ async function tolerateOutage(fn) {
 
 function itIfAnaf(name, fn, timeout) {
   if (CONFIGURED && HAS_ANAF) return it(name, () => tolerateOutage(fn), timeout);
-  return it.skip(`${name} (skipped: ${CONFIGURED ? 'ANAF unavailable' : 'company not configured'})`, fn, timeout);
+  return it.skip(`${name} (skipped: ${CONFIGURED ? 'company data sources unavailable' : 'company not configured'})`, fn, timeout);
 }
 
 describe('Integration: API Workflow', () => {
 
-  describe('ANAF API', () => {
+  describe('CUIScan/CUIFirma API', () => {
     let anaf;
 
     beforeAll(async () => {
@@ -107,7 +108,7 @@ describe('Integration: API Workflow', () => {
       const results = await anaf.searchCompany(COMPANY_NAME);
 
       expect(Array.isArray(results)).toBe(true);
-      if (results.length === 0) { console.warn('ANAF/CUIFirma search returned nothing - upstream search unavailable, skipping'); return; }
+      if (results.length === 0) { console.warn('CUIFirma/CUIScan search returned nothing - upstream search unavailable, skipping'); return; }
 
       const company = results.find(c =>
         c.cui.toString() === COMPANY_CIF && c.statusLabel === 'Funcțiune'
@@ -275,9 +276,9 @@ describe('Integration: API Workflow', () => {
       api = await import('../../scraper/api.js');
     });
 
-    itIfAnaf('should complete the ANAF → Peviitor validation path', async () => {
+    itIfAnaf('should complete the CUIScan → Peviitor validation path', async () => {
       const searchResults = await anaf.searchCompany(COMPANY_NAME);
-      if (searchResults.length === 0) { console.warn('ANAF/CUIFirma search returned nothing - upstream search unavailable, skipping'); return; }
+      if (searchResults.length === 0) { console.warn('CUIFirma/CUIScan search returned nothing - upstream search unavailable, skipping'); return; }
 
       const matchedCompany = searchResults.find(c =>
         c.cui.toString() === COMPANY_CIF && c.statusLabel === 'Funcțiune'

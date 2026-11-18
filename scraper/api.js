@@ -109,9 +109,9 @@ async function fetchWithRetry(url, options = {}, label = "request") {
  */
 export async function getCompanyByCif(cif) {
   const url = `${API_BASE_URL}/firme/company/?cif=${encodeURIComponent(padCif(cif))}`;
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     headers: { "User-Agent": userAgent }
-  });
+  }, "company search");
 
   if (!res.ok) {
     throw new Error(`API company search error: ${res.status}`);

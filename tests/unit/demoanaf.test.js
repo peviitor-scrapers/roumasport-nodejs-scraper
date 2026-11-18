@@ -6,17 +6,17 @@ jest.unstable_mockModule('node-fetch', () => ({
   default: mockFetch
 }));
 
-function anafSearchResponse(results) {
+function cuifirmaSearchResponse(results) {
   return {
     ok: true,
-    json: async () => ({ data: results, success: true })
+    json: async () => ({ results })
   };
 }
 
-function anafCompanyResponse(data) {
+function cuiscanCompanyResponse(data) {
   return {
     ok: true,
-    json: async () => ({ data, success: true })
+    json: async () => data
   };
 }
 
@@ -28,23 +28,10 @@ function errorResponse(status) {
   };
 }
 
-function cuiscanCompanyResponse(data) {
-  return {
-    ok: true,
-    json: async () => data
-  };
-}
-
-const LSEG_ANAF_RECORD = {
+const LSEG_CUIFIRMA_RECORD = {
   cui: 39176747,
   name: 'LSEG BUSINESS SERVICES RM S.R.L.',
-  address: 'IANCU DE HUNEDOARA, 48, Bucureşti Sectorul 1, Bucureşti',
-  caenCode: '6220',
-  inactive: false,
-  registrationNumber: 'J2014005735405',
-  vatRegistered: true,
-  onrcStatusLabel: 'Funcțiune',
-  legalForm: 'SRL'
+  statusLabel: 'Funcțiune'
 };
 
 const CUISCAN_RECORD = {
@@ -82,8 +69,8 @@ describe('scraper/anaf.js', () => {
 
   describe('searchCompany', () => {
     it('should return array of companies for valid brand', async () => {
-      mockFetch.mockResolvedValue(anafSearchResponse([
-        { cui: 39176747, name: 'LSEG BUSINESS SERVICES RM S.R.L.', statusLabel: 'Funcțiune' }
+      mockFetch.mockResolvedValue(cuifirmaSearchResponse([
+        { cui: 39176747, name: 'LSEG BUSINESS SERVICES RM S.R.L.', is_active: true }
       ]));
 
       const results = await anaf.searchCompany('LSEG');
@@ -95,7 +82,7 @@ describe('scraper/anaf.js', () => {
     });
 
     it('should return empty array for non-existent brand', async () => {
-      mockFetch.mockResolvedValue(anafSearchResponse([]));
+      mockFetch.mockResolvedValue(cuifirmaSearchResponse([]));
 
       const results = await anaf.searchCompany('NonExistentBrandXYZ123');
 
@@ -104,8 +91,8 @@ describe('scraper/anaf.js', () => {
     });
 
     it('should include statusLabel in results', async () => {
-      mockFetch.mockResolvedValue(anafSearchResponse([
-        { cui: 39176747, name: 'LSEG BUSINESS SERVICES RM S.R.L.', statusLabel: 'Funcțiune' }
+      mockFetch.mockResolvedValue(cuifirmaSearchResponse([
+        { cui: 39176747, name: 'LSEG BUSINESS SERVICES RM S.R.L.', is_active: true }
       ]));
 
       const results = await anaf.searchCompany('LSEG');
@@ -113,23 +100,11 @@ describe('scraper/anaf.js', () => {
       expect(results[0]).toHaveProperty('statusLabel', 'Funcțiune');
     });
 
-    it('should fallback to CUIFirma when ANAF search fails', async () => {
-      mockFetch
-        .mockResolvedValueOnce(errorResponse(500))
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ results: [{ cui: 39176747, name: 'LSEG BUSINESS SERVICES RM S.R.L.', is_active: true }] }) });
-
-      const results = await anaf.searchCompany('LSEG');
-
-      expect(Array.isArray(results)).toBe(true);
-      expect(results.length).toBeGreaterThan(0);
-      expect(results[0].cui).toBe('39176747');
-    });
-
     it('should encode brand name in URL', async () => {
       let capturedUrl;
       mockFetch.mockImplementation((url) => {
         capturedUrl = url;
-        return Promise.resolve(anafSearchResponse([]));
+        return Promise.resolve(cuifirmaSearchResponse([]));
       });
 
       await anaf.searchCompany('LSEG SRL');
@@ -139,7 +114,7 @@ describe('scraper/anaf.js', () => {
 
   describe('getCompanyFromANAF', () => {
     it('should return company data for valid CIF', async () => {
-      mockFetch.mockResolvedValue(anafCompanyResponse(LSEG_ANAF_RECORD));
+      mockFetch.mockResolvedValue(cuiscanCompanyResponse(CUISCAN_RECORD));
 
       const data = await anaf.getCompanyFromANAF('39176747');
 
@@ -150,48 +125,23 @@ describe('scraper/anaf.js', () => {
       expect(data).toHaveProperty('registrationNumber');
     });
 
-    it('should fallback to CUIScan when ANAF fails', async () => {
-      mockFetch
-        .mockResolvedValueOnce(errorResponse(500))
-        .mockResolvedValueOnce(cuiscanCompanyResponse(CUISCAN_RECORD));
-
-      const data = await anaf.getCompanyFromANAF('39176747');
-
-      expect(data).toBeDefined();
-      expect(data.cui).toBe(39176747);
-      expect(data.name).toBe('LSEG BUSINESS SERVICES RM S.R.L.');
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-    });
-
-    it('should throw when both ANAF and CUIScan fail', async () => {
+    it('should throw when CUIScan fails', async () => {
       mockFetch.mockResolvedValue(errorResponse(500));
 
       await expect(anaf.getCompanyFromANAF('39176747')).rejects.toThrow();
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle API-level error response', async () => {
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ success: false, error: { message: 'Company not found' } })
-        })
-        .mockResolvedValueOnce(errorResponse(500));
+    it('should throw when CUIScan returns no data', async () => {
+      mockFetch.mockResolvedValue(cuiscanCompanyResponse(null));
 
-      await expect(anaf.getCompanyFromANAF('00000000')).rejects.toThrow();
-    });
-
-    it('should return null when data is null', async () => {
-      mockFetch.mockResolvedValue(anafCompanyResponse(null));
-
-      const data = await anaf.getCompanyFromANAF('39176747');
-      expect(data).toBeNull();
+      await expect(anaf.getCompanyFromANAF('39176747')).rejects.toThrow();
     });
   });
 
   describe('getCompanyFromANAFWithFallback', () => {
     it('should return fresh data when API works', async () => {
-      mockFetch.mockResolvedValue(anafCompanyResponse(LSEG_ANAF_RECORD));
+      mockFetch.mockResolvedValue(cuiscanCompanyResponse(CUISCAN_RECORD));
 
       const data = await anaf.getCompanyFromANAFWithFallback('39176747');
 

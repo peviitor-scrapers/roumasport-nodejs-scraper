@@ -1,8 +1,8 @@
 /**
  * Company Module - Company Validation and Data Management
  *
- * Handles company data validation from ANAF, caches company information,
- * and validates companies against the Peviitor API.
+ * Handles company data validation from CUIScan/CUIFirma, caches company information,
+ * caches company information, and validates companies against the Peviitor API.
  */
 
 import fetch from "node-fetch";
@@ -112,7 +112,7 @@ async function getCompanyFromPeviitor(companyName) {
   // the same unfiltered first page whatever the query is (live: "total" ~1700,
   // first entry an unrelated company). Taking companies[0] would label this
   // scraper's jobs with another company's name, so keep only an exact
-  // (case-insensitive) name match; no match falls back to the ANAF name.
+  //    (case-insensitive) name match; no match falls back to the CUIScan name.
   const target = companyName.trim().toUpperCase();
   return (
     (data.companies || []).find(
@@ -128,7 +128,7 @@ async function getCompanyFromPeviitor(companyName) {
 function saveCompanyData(anafData, peviitorData) {
   const companyData = {
     validatedAt: new Date().toISOString(),
-    source: "ANAF",
+    source: "CUIScan/CUIFirma",
     brand: COMPANY_BRAND,
     anaf: anafData,
     peviitor: peviitorData,
@@ -205,13 +205,18 @@ export async function getCompanyData() {
     };
   }
 
-  console.log(`Fetching fresh company data from ANAF for CIF: ${COMPANY_CIF}`);
+  console.log(`Fetching fresh company data from CUIScan for CIF: ${COMPANY_CIF}`);
   let anafData;
   try {
     anafData = await getCompanyFromANAF(COMPANY_CIF);
   } catch (err) {
+    // "No data" errors are fatal — we can't proceed without company data.
+    // Network/HTTP errors fall back to cache or company config.
+    if (/returned no (data|company name)/.test(err.message)) {
+      throw err;
+    }
     if (cachedData?.anaf) {
-      console.log(`⚠️ ANAF unreachable (${err.message}) — falling back to cached data`);
+      console.log(`⚠️ CUIScan unreachable (${err.message}) — falling back to cached data`);
       const a = cachedData.anaf;
       return {
         company: a.name.toUpperCase(),
@@ -220,7 +225,7 @@ export async function getCompanyData() {
         anafData: a
       };
     }
-    console.log(`⚠️ ANAF unreachable (${err.message}) — no cache available, proceeding with company config`);
+    console.log(`⚠️ CUIScan unreachable (${err.message}) — no cache available, proceeding with company config`);
     return {
       company: COMPANY_LEGAL_NAME,
       cif: COMPANY_CIF,
@@ -230,14 +235,14 @@ export async function getCompanyData() {
   }
 
   if (!anafData) {
-    throw new Error("No data from ANAF - cannot proceed with scraping");
+    throw new Error("No data from CUIScan - cannot proceed with scraping");
   }
   if (!anafData.name) {
-    throw new Error("ANAF returned no company name - cannot proceed with scraping");
+    throw new Error("CUIScan returned no company name - cannot proceed with scraping");
   }
 
-  console.log(`ANAF returned name: ${anafData.name}`);
-  console.log(`ANAF status: ${anafData.inactive ? "INACTIVE" : "ACTIVE"}`);
+  console.log(`CUIScan returned name: ${anafData.name}`);
+  console.log(`CUIScan status: ${anafData.inactive ? "INACTIVE" : "ACTIVE"}`);
 
   return {
     company: anafData.name.toUpperCase(),
@@ -253,14 +258,14 @@ export async function getCompanyData() {
 
 /**
  * @param {boolean} dryRun - when true, skips the CIF-wide delete below for an
- * ANAF-inactive company. This function never had a dry-run path at all before
+ * CUIScan-inactive company. This function never had a dry-run path at all before
  * -- callers had no way to safely check a company's status without risking a
  * real, CIF-wide DELETE against peviitor's live API (deleteJobsByCIF removes
  * every job under that CIF, including ones scraped by other, unrelated
  * scrapers, not just this one's).
  */
 export async function validateAndGetCompany(dryRun = false) {
-  console.log("=== Step 1: Validate company via ANAF ===\n");
+  console.log("=== Step 1: Validate company via CUIScan/CUIFirma ===\n");
 
   const companyData = await getCompanyData();
   let company = companyData.company;
@@ -277,7 +282,7 @@ export async function validateAndGetCompany(dryRun = false) {
     // legal name it already has stored (uppercase) -- querying with the
     // brand (e.g. "Hochland" against a stored "HOCHLAND ...") never
     // matches, so this silently returned no record, and every job/company
-    // write below fell back to ANAF's freshly fetched name instead of
+    // write below fell back to CUIScan's freshly fetched name instead of
     // whatever peviitor already had indexed.
     peviitorData = await getCompanyFromPeviitor(COMPANY_LEGAL_NAME.toUpperCase());
     console.log("Peviitor data fetched successfully");
@@ -289,22 +294,22 @@ export async function validateAndGetCompany(dryRun = false) {
     saveCompanyData(anafData, peviitorData);
   }
 
-  // Prefer the name peviitor already has on file for this CIF: ANAF's
+  // Prefer the name peviitor already has on file for this CIF: CUIScan's
   // spelling (diacritics, spacing) can drift from what's already indexed
   // and faceted on the site, and peviitor's company-core upsert does not
   // reliably rewrite an existing "company" field -- so a job tagged with
-  // ANAF's fresh name can permanently mismatch the site's "Companie"
+  // CUIScan's fresh name can permanently mismatch the site's "Companie"
   // filter even though free-text search still finds it. Only fall back to
-  // ANAF's name for a company peviitor has never seen before.
+  // CUIScan's name for a company peviitor has never seen before.
   if (peviitorData?.company) {
     company = peviitorData.company;
   }
 
   if (!active) {
     if (dryRun) {
-      console.log(`\n⚠️ Company is INACTIVE in ANAF -- dry-run, so NOT deleting the ${solrResult.numFound} job(s) under this CIF (would run deleteJobsByCIF on a real run)`);
+      console.log(`\n⚠️ Company is INACTIVE in CUIScan -- dry-run, so NOT deleting the ${solrResult.numFound} job(s) under this CIF (would run deleteJobsByCIF on a real run)`);
     } else {
-      console.log("\n⚠️ Company is INACTIVE in ANAF - deleting jobs from SOLR and stopping");
+      console.log("\n⚠️ Company is INACTIVE in CUIScan - deleting jobs from SOLR and stopping");
       if (solrResult.numFound > 0) {
         await deleteJobsByCIF(cif);
       }
