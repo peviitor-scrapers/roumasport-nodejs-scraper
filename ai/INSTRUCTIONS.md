@@ -158,17 +158,17 @@ generateJobsMarkdown() → docs/jobs.md
 
 ## Rate Limiting & Politeness
 
-The scraper is intentionally slow to be a good citizen:
+The scraper stays polite without the old fixed sleeps:
 
 | Setting | Value | Where |
 |---------|-------|-------|
-| Request timeout | 10000 ms | `scraper/config/scraper.json` — `requestTimeoutMs` |
+| Request timeout | 10000 ms (real `AbortSignal.timeout`) | `scraper/config/scraper.json` — `requestTimeoutMs`, applied in `scraper/index.js` |
 | Company data | CUIScan / CUIFirma, no retries | `scraper/anaf.js` — 7-day cache in `tmp/company.json` |
-| Concurrency | 1 (sequential) | No `Promise.all` for paginated fetches |
+| Concurrency | max 5 in flight | `scraper/index.js` — `MAX_PARALLEL_FETCHES` (sitemap details and live URL checks) |
 | User-Agent | `job_seeker_ro_spider` | Identifies the scraper in server logs |
-| Page delay | 1000 ms between requests | `scraper/config/scraper.json` — `pageDelayMs` |
+| Page delay | none (removed) | The former 1000 ms sleep per job only made the scrape slow |
 
-Derived scrapers should keep these defaults unless the target site explicitly permits otherwise.
+Derived scrapers should keep these bounded defaults unless the target site explicitly permits otherwise.
 
 ## Environment Variables
 
@@ -177,7 +177,7 @@ Derived scrapers should keep these defaults unless the target site explicitly pe
 | `GITHUB_REPOSITORY` | Used by consistency tests — format: `owner/repo` |
 | `GITHUB_TOKEN` | GitHub API token for consistency tests |
 
-`dotenv` loads `.env.local` automatically at startup — set variables there for local runs. Never commit `.env.local`.
+`.env.local` is not used — all API access goes through `api.peviitor.ro` and needs no credentials. Never commit `.env.local`.
 
 ## Standalone Commands
 
@@ -230,4 +230,4 @@ All temporary/scratch files must be placed in `tmp/` inside the project root (ne
 - [x] Write Unit Tests for all modules (#3)
 - [x] Write Integration Tests in separate folder (#4)
 - [x] Write E2E automated tests in separate folder (#5)
-- [ ] Write Unit/Component/E2E tests for index.js
+- [x] Write Unit/Component/E2E tests for index.js (unit + integration + e2e suites)

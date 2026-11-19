@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   both now rebase and retry instead of silently dropping `docs/jobs.md` and
   test reports. Removed unused `tests/package*.json` leftovers and refreshed
   `docs/README.md` / `ai/files.md` descriptions.
+- Synced `ai/*.md` with the upstream peviitor_core schemas and current scraper
+  behavior; documented that `cariere.decathlon.ro/robots.txt` disallows general
+  crawlers and needs an explicit owner decision. Closed stale auto-heal issues.
 
 ## [1.3.0] - 2026-09-23
 

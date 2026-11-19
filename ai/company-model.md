@@ -13,10 +13,10 @@
 |--------------|----------|-------------|
 | brand        | string   | Commercial brand name (e.g. "Dacia", "Cotnari") |
 | group        | string   | Parent company group, if any |
-| status       | string   | "activ", "suspendat", "inactiv", or "radiat" |
+| status       | string   | "activ", "suspendat", "inactiv", or "radiat". Config value only here — this scraper never deletes jobs or the company based on status (#25) |
 | location     | string[] | Romanian cities/addresses. DIACRITICS ACCEPTED. Multi-valued array |
-| website      | string[] | Official company website. Must be valid HTTP/HTTPS URL |
-| career       | string[] | Official career/jobs page. Must be valid HTTP/HTTPS URL |
+| website      | string[] | Official company website. Valid HTTP/HTTPS URL, canonical, no trailing slash |
+| career       | string[] | Official career/jobs page. Valid HTTP/HTTPS URL, canonical, no trailing slash |
 | lastScraped  | string   | Date of last scrape in ISO8601 format |
 | scraperFile  | string   | URL to scraper GitHub Actions workflow (no raw) |
 

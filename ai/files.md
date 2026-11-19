@@ -34,12 +34,15 @@
 | `tests/unit/company.test.js` | Unit tests for company.js - getCompanyBrand, validateAndGetCompany, fallback caching |
 | `tests/unit/api.test.js` | Unit tests for api.js - query, upsert, delete, HTTP error handling |
 | `tests/unit/anaf.test.js` | Unit tests for anaf.js - CUIScan/CUIFirma search, company retrieval, cache fallback |
+| `tests/unit/anaf-json.test.js` | Unit tests for ANAF/CUIScan JSON response parsing and HTML error pages |
+| `tests/unit/decathlon-detail.test.js` | Unit tests for the careers-site detail page (JSON-LD `JobPosting`) parser |
+| `tests/unit/drop-dead-urls.test.js` | Unit tests for the pre-upload live URL check (GET, soft-404 detection); mocks `node-fetch` |
 | `tests/unit/job-validator.test.js` | Unit tests for job-validator.js - validateByHead, validateByContent, validateByBrowser |
 | `tests/unit/self-healing.test.js` | Unit tests for self-healing.js - each cascade level in isolation, all-fail logging, JSON-LD, `locateArticles` modes |
 | `tests/unit/validate.test.js` | Unit tests for validate.js - url/title/location/salary rules, `filterValidJobs`, canary |
 | `tests/unit/markdown-generator.test.js` | Unit tests for markdown-generator.js |
 | `tests/integration/workflow.test.js` | Integration tests - CUIScan/CUIFirma live API, Peviitor API |
-| `tests/e2e/scraper.test.js` | E2E tests - full pipeline with the live careers site, CUIScan/CUIFirma, and Peviitor API |
+| `tests/e2e/scraper.test.js` | E2E tests - full pipeline with the live careers site, CUIScan/CUIFirma, and Peviitor API. The ~109 s full careers scrape is opt-in via `RUN_LIVE_SCRAPE=1` |
 | `tests/consistency/public.test.js` | Verifies repository is public on GitHub |
 | `tests/consistency/repo.test.js` | Verifies default branch, GitHub Pages, workflow files |
 | `tests/consistency/topics.test.js` | Verifies repository has required topics: job-seeker-ro-spider, peviitor-ro |
@@ -57,8 +60,8 @@
 | `files.md` | This file - documents role of each project file |
 | `AGENTS.md` | Rules for AI agents working on this project |
 | `BRANCH.md` | Branch strategy and naming conventions |
-
 | `ISSUES.md` | Issue tracking conventions |
+| `MAINTENANCE.md` | Full maintenance workflow (issues, health summary, verification) |
 | `PUBLIC.md` | Notes on public visibility and data policies |
 | `ROBOTS.md` | robots.txt analysis and scraping policy for the careers site |
 | `SECURITY.md` | Security policy and vulnerability reporting |
@@ -74,7 +77,7 @@
 | `package-lock.json` | Locked dependency versions |
 | `.npmrc` | npm configuration |
 | `.gitignore` | Ignores node_modules/, tmp/, .env.local |
-| `.env.local` | Local environment variables - NOT committed |
+| `.env.local` | Ignored local file; not used by the current code (all API access goes through `api.peviitor.ro`) |
 | `CHANGELOG.md` | Version history and notable changes |
 | `CONTRIBUTING.md` | Contribution guidelines |
 | `.github/CODEOWNERS` | Code ownership rules for PR reviews |
