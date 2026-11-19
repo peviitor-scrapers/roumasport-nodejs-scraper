@@ -28,9 +28,8 @@
 
 | File | Description |
 |------|-------------|
-| `tests/package.json` | Jest config for test suite - experimental VM modules, test scripts (unit/integration/e2e/consistency) |
-| `tests/company.json` | Mock company data used in unit tests |
-| `tests/validate-company-jobs.js` | **Company-specific validator (used by CI).** Modes: `--head` (default), `--content`. Called nightly by `tests.yml` and manually via `job-deep-validate.yml`. Supports `--dry-run` and `--delete`. |
+| `tests/company.json` | Example shape of the `tmp/company.json` cache. Kept as a reference only — **not loaded by any test**. Jest config and test scripts live in the root `package.json`. |
+| `tests/validate-company-jobs.js` | **Company-specific validator (used by CI).** Modes: `--head` (default), `--content`, `--browser`. Called nightly by `tests.yml` and manually via `job-deep-validate.yml`. Supports `--dry-run`, `--delete` and `--timeout`. |
 | `tests/unit/index.test.js` | Unit tests for index.js - slugify, parseDeadline, matchSitemapUrl, parseListing, mapToJobModel, transformJobsForSOLR |
 | `tests/unit/company.test.js` | Unit tests for company.js - getCompanyBrand, validateAndGetCompany, fallback caching |
 | `tests/unit/api.test.js` | Unit tests for api.js - query, upsert, delete, HTTP error handling |

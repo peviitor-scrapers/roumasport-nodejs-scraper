@@ -1,15 +1,15 @@
-# job_seeker_ro_spider — GitHub Pages
+# ROUMASPORT SRL — GitHub Pages
 
-This folder is published by GitHub Pages for a **derived** scraper. It shows the
-company's current openings, pulled live from the peviitor API.
+This folder is published by GitHub Pages. It shows the company's current
+openings, read live from the peviitor API, plus the CI test reports.
 
-- `index.html` — the page. Reads `company.json` at runtime; falls back to the
-  `{{...}}` constants near the top of its `<script>` if that file is missing.
+- `index.html` — the dashboard. Reads `company.json` at runtime; the constants
+  near the top of its `<script>` are the fallback if that file is missing.
 - `company.json` — regenerated on every scrape by `scraper/index.js` (a copy of
   `scraper/config/company.json` plus `ownJobUrlPrefix`).
 - `jobs.md` — generated on every scrape (company info + all current jobs).
-- `test-results/` — HTML test reports pushed by CI.
+- `test-results/` — HTML reports pushed by CI; its `index.html` links to the
+  pre-scrape unit/integration and post-scrape e2e/consistency reports.
 
-Nothing here is edited by hand except `index.html`. When you derive a scraper,
-replace the `{{PLACEHOLDER}}` values in `company.json` (or just fill in
-`scraper/config/company.json` and let the first scrape regenerate this copy).
+Only `index.html` and this README are edited by hand. The generated files are
+refreshed by `.github/workflows/scrape.yml` and `.github/workflows/tests.yml`.

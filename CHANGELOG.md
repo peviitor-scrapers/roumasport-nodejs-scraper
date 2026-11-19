@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   minutes with a pagination cap. CI installs with `npm ci` and an npm cache;
   the daily `Tests` schedule now runs only job validation, avoiding a second
   full suite alongside `scrape.yml` (#26). Full suite: 122 s → 13 s.
+- Fixed the generated-docs push race between `scrape.yml` and `tests.yml`:
+  both now rebase and retry instead of silently dropping `docs/jobs.md` and
+  test reports. Removed unused `tests/package*.json` leftovers and refreshed
+  `docs/README.md` / `ai/files.md` descriptions.
 
 ## [1.3.0] - 2026-09-23
 
