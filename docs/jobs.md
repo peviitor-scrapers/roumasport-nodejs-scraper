@@ -7,14 +7,14 @@
 | CIF | 23727785 |
 | Brand | Decathlon |
 | Status | activ |
-| Location | MUNICIPIUL BUCUREŞTI, SECTOR 6, B-DUL IULIU MANIU, NR.546-560, BL.CORP 2 |
+| Location | Bucuresti |
 | Website | [https://www.decathlon.ro](https://www.decathlon.ro) |
 | Careers | [https://cariere.decathlon.ro/](https://cariere.decathlon.ro/) |
 | Last Scraped | 2026-11-19 |
 
 ## Current Job Listings (89)
 
-_Generated: 2026-11-19T00:50:18.115Z_
+_Generated: 2026-11-19T15:21:16.396Z_
 
 ### Reprezentant Vânzări Decathlon Băneasa
 
@@ -219,7 +219,7 @@ _Generated: 2026-11-19T00:50:18.115Z_
 - **Location:** Bucuresti
 - **Status:** scraped
 
-### Manager departament Decathlon Obor
+### Manager Departament Decathlon Obor
 
 - **URL:** [https://cariere.decathlon.ro/jobs/manager-departament-decathlon-obor-cdPm](https://cariere.decathlon.ro/jobs/manager-departament-decathlon-obor-cdPm)
 - **Work Mode:** on-site
