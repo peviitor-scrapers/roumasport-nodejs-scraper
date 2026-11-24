@@ -10,11 +10,11 @@
 | Location | MUNICIPIUL BUCUREŞTI, SECTOR 6, B-DUL IULIU MANIU, NR.546-560, BL.CORP 2 |
 | Website | [https://www.decathlon.ro](https://www.decathlon.ro) |
 | Careers | [https://cariere.decathlon.ro/](https://cariere.decathlon.ro/) |
-| Last Scraped | 2026-11-23 |
+| Last Scraped | 2026-11-24 |
 
-## Current Job Listings (89)
+## Current Job Listings (87)
 
-_Generated: 2026-11-23T17:32:02.364Z_
+_Generated: 2026-11-24T17:04:35.733Z_
 
 ### Reprezentant Vânzări Decathlon Băneasa
 
@@ -590,13 +590,6 @@ _Generated: 2026-11-23T17:32:02.364Z_
 - **Location:** România
 - **Status:** scraped
 
-### Tehnician reparații biciclete Decathlon Braila
-
-- **URL:** [https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-braila-ce5W-copy-ckUv](https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-braila-ce5W-copy-ckUv)
-- **Work Mode:** on-site
-- **Location:** Braila
-- **Status:** scraped
-
 ### Tehnician reparații biciclete Decathlon Satu Mare
 
 - **URL:** [https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-satu-mare-ckWu](https://cariere.decathlon.ro/jobs/tehnician-reparatii-biciclete-decathlon-satu-mare-ckWu)
@@ -607,13 +600,6 @@ _Generated: 2026-11-23T17:32:02.364Z_
 ### Reprezentant Vânzări Decathlon Pantelimon
 
 - **URL:** [https://cariere.decathlon.ro/jobs/reprezentant-vanzari-decathlon-pantelimon-ck3l](https://cariere.decathlon.ro/jobs/reprezentant-vanzari-decathlon-pantelimon-ck3l)
-- **Work Mode:** on-site
-- **Location:** Bucuresti
-- **Status:** scraped
-
-### Manager Departament Decathlon Pantelimon
-
-- **URL:** [https://cariere.decathlon.ro/jobs/manager-departament-decathlon-pantelimon-ck3m](https://cariere.decathlon.ro/jobs/manager-departament-decathlon-pantelimon-ck3m)
 - **Work Mode:** on-site
 - **Location:** Bucuresti
 - **Status:** scraped
